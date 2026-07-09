@@ -241,6 +241,8 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
     info["declared"] = "no"
     info["array"] = "scalar"
     info["integer"] = "no"
+    info["nameref"] = "no"
+    info["case_transform"] = "none"
     info["name"] = ""
     info["type"] = "string"
 
@@ -268,6 +270,9 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
         if (index(opts, "a")) info["array"] = "indexed_array"
         if (index(opts, "A")) info["array"] = "associative_array"
         if (index(opts, "i")) info["integer"] = "yes"
+        if (index(opts, "n")) info["nameref"] = "yes"
+        if (index(opts, "l")) info["case_transform"] = "lowercase"
+        if (index(opts, "u")) info["case_transform"] = "uppercase"
 
         sub(/^-[A-Za-z]+[ \t]*/, "", line)
         line = trim(line)
@@ -282,6 +287,9 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
         name = trim(substr(line, 1, eqpos - 1))
         value = trim(substr(line, eqpos + 1))
     } else {
+        if (info["declared"] != "yes") {
+            return 0
+        }
         name = line
         value = ""
     }
@@ -301,6 +309,8 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
         info["type"] = "associative_array"
     } else if (info["array"] == "indexed_array") {
         info["type"] = "indexed_array"
+    } else if (info["nameref"] == "yes") {
+        info["type"] = "nameref"
     } else if (info["integer"] == "yes") {
         info["type"] = "integer"
     } else {
@@ -333,6 +343,13 @@ function variable_meta(info,    meta) {
     }
 
     meta = meta info["type"]
+
+    if (info["case_transform"] == "lowercase") {
+        meta = meta " lowercase-transform"
+    } else if (info["case_transform"] == "uppercase") {
+        meta = meta " uppercase-transform"
+    }
+
     return meta
 }
 
@@ -347,6 +364,8 @@ function variable_pseudo_type(info,    type) {
         type = type "AssociativeArray"
     } else if (info["type"] == "indexed_array") {
         type = type "IndexedArray"
+    } else if (info["type"] == "nameref") {
+        type = type "NameReference"
     } else if (info["type"] == "integer") {
         type = type "Integer"
     } else {
