@@ -226,7 +226,7 @@ function is_probable_function_decl(line) {
 function emit_function(name,    params) {
     params = build_param_list()
     emit_doc_block("")
-    print "void " name "(" params ");"
+    print "int " name "(" params ");"
 }
 
 function classify_variable(raw_line, info,    line, prefix, opts, name, value, eqpos, token, rest) {
