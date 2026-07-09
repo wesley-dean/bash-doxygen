@@ -1,88 +1,186 @@
-# template
+# bash-doxygen
 
-## Description
+`bash-doxygen` is a documentation-led Doxygen filter for Bash.  It converts
+Doxygen-style Bash comments and the Bash declaration that follows them into a
+small pseudo-C++ representation that Doxygen can index.
 
-This is a template for a README.md file. It is a markdown file that is used to
-describe a project. It is used to provide information about the project to the
-users and contributors. It is a good practice to have a README.md file in your
-project repository.
+The filter is intentionally conservative about what it documents: a function or
+variable is only emitted when it is decorated with a Doxygen comment block.
+Undocumented helper functions and implementation details are ignored.
 
-## Usage
+The implementation lives in a single portable awk file:
 
-You can use this template to create a README.md file for your project. You can
+```text
+./doxygen-bash.awk
+```
 
-- Clone this repository
-- Copy the README.md file to your project repository
-- Edit the file to add information about your project
+## Comment style
 
-### Environment Variables
+The primary supported style is a contiguous block of `##` comments immediately
+before the declaration being documented:
 
-There are three environment variables that need to be set for this project to
-work correctly:
+```bash
+## @brief Read a file from disk.
+## @details
+## The caller is responsible for validating the path before calling this
+## function.
+## @param path File path to read.
+## @returns 0 on success; non-zero otherwise.
+read_file() {
+    cat -- "$1"
+}
+```
 
-- `PAT` - Your GitHub Personal Access Token
-- `GPG_PRIVATE_KEY` - Your GPG Private Key
-- `GPG_PRIVATE_KEY_PASSPHRASE` - Your GPG Private Key Passphrase
+For variables, use `@var` when you want the filter to validate that the comment
+matches the declaration:
 
-The `PAT` environment variable is used by MegaLinter to authenticate with the
-GitHub API. The `GPG_PRIVATE_KEY` and `GPG_PRIVATE_KEY_PASSPHRASE` environment
-variables are used to sign the commits that MegaLinter creates when
-`APPLY_FIXES` is set to `true`.
+```bash
+## @var CACHE_DIR
+## @brief Directory used for cached data.
+readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/example"
+```
 
-If the MegaLinter action is disabled, none of these environment variables are
-required.
+The filter preserves normal Doxygen commands such as `@brief`, `@details`,
+`@param`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, and custom aliases.
+It only interprets a small structural subset: `@file`, `@fn`, `@var`, and
+`@param` names.
 
-### Conventional Commits
+## Manual usage
 
-This project uses Conventional Commits. Conventional Commits is a specification
-for adding human and machine readable meaning to commit messages. It is a
-lightweight convention on top of commit messages. The specification can be
-found at [conventionalcommits.org](https://www.conventionalcommits.org/).
+Run the filter directly with awk:
 
-Specifically, this project uses the
-[bitshifted/git-auto-semver](https://github.com/bitshifted/git-auto-semver)
-action to automatically increment the version number based on the commit
-messages:
+```sh
+awk -f ./doxygen-bash.awk ./script.bash > ./script.dox.cpp
+```
 
+The generated file is not intended to be compiled.  It is a Doxygen-friendly
+intermediate representation.
 
-- `build`, `chore`, `ci`, `docs`, `fix`, `perf`, `refactor`, `revert`,
-  `style`, `test`: bump micro (patch) number
-- `feat`: bump minor version number
-- `BREAKING CHANGE`: bump major version number
+You can also make the filter executable:
 
-## Documentation
+```sh
+chmod +x ./doxygen-bash.awk
+./doxygen-bash.awk ./script.bash > ./script.dox.cpp
+```
 
-### Architecture Decision Records (ADRs)
+### Options
 
-This project is configured to use [Nat Pryce's](https://github.com/npryce)
-[adr-tools](https://github.com/npryce/adr-tools) project.  There is a template
-at `doc/adrs/templates/template.md` which can be edited at-will.  The ADR
-template is built to support both human and machine (AI/LLM)-produced and
-maintained ADRs.  The configuration file, `.adr-dir` resides at the root of
-the project and may be updated if ADRs are to be stored in an alternate
-directory.
+The filter accepts simple command-line options before file names:
 
-For more information about ADRs, check out
-[Michael Nygard](https://cognitect.com/authors/MichaelNygard.html)'s
-[article](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
-on the topic.
+```sh
+awk -f ./doxygen-bash.awk -- --strict ./script.bash > ./script.dox.cpp
+awk -f ./doxygen-bash.awk -- --compact ./script.bash > ./script.dox.cpp
+```
+
+`--strict` exits with a non-zero status when the filter emits a diagnostic.
+This is useful in CI when documentation drift should fail the build.
+
+`--compact` suppresses blank placeholder lines in the generated output.  By
+default, blank lines are emitted for ignored source lines so Doxygen diagnostics
+remain closer to the original Bash source locations.
+
+## Doxyfile usage
+
+Use the filter with Doxygen by adding it to `FILTER_PATTERNS`:
+
+```ini
+FILTER_PATTERNS = *.sh=./doxygen-bash.awk \
+                  *.bash=./doxygen-bash.awk
+```
+
+A minimal configuration might look like this:
+
+```ini
+PROJECT_NAME = "Bash Project"
+INPUT = .
+FILE_PATTERNS = *.sh *.bash
+RECURSIVE = YES
+FILTER_PATTERNS = *.sh=./doxygen-bash.awk \
+                  *.bash=./doxygen-bash.awk
+EXTENSION_MAPPING = sh=C++ bash=C++
+EXTRACT_ALL = NO
+QUIET = YES
+```
+
+When using strict mode through Doxygen, wrap the filter in a small script:
+
+```sh
+#!/bin/sh
+awk -f ./doxygen-bash.awk -- --strict "$@"
+```
+
+Then reference that wrapper from `FILTER_PATTERNS`.
+
+## Supported declarations
+
+The filter recognizes documented functions using common Bash forms:
+
+```bash
+name() {
+name () {
+function name {
+function name() {
+```
+
+It recognizes documented variables using common assignment and declaration
+forms:
+
+```bash
+NAME=value
+NAME=(one two three)
+readonly NAME=value
+export NAME=value
+local NAME=value
+declare -r NAME=value
+declare -a NAME=(one two three)
+declare -A NAME=([key]=value)
+declare -i COUNT=0
+declare -n REF=NAME
+declare -l LOWER=value
+declare -u UPPER=value
+```
+
+Variable output is enriched with inferred Bash characteristics, including
+read-only/read-write, exported, local, indexed array, associative array,
+integer, nameref, lowercase transform, and uppercase transform.
+
+## Diagnostics
+
+Diagnostics are written to standard error.  The filter warns when:
+
+- a documentation block is not followed by a recognized declaration;
+- an `@fn` block precedes a variable declaration;
+- an `@var` block precedes a function declaration;
+- an `@fn` name differs from the function declaration;
+- an `@var` name differs from the variable declaration.
+
+With `--strict`, any warning causes the filter to exit non-zero.
+
+## Testing
+
+Run the test harness from the repository root:
+
+```sh
+./test/run-tests.sh
+```
+
+The tests execute the awk filter against fixtures in `test/fixtures/` and compare
+its output with files in `test/expected/`.  The suite also verifies that strict
+mode fails when documented intent and Bash declarations disagree.
+
+## Design notes
+
+This project is not a full Bash parser.  It is a documentation compiler for the
+small subset of Bash declarations that can reasonably follow a Doxygen block.
+The parser is permissive about whitespace and declaration style, but strict
+about documented intent when `@fn` or `@var` is provided.
 
 ## License
 
 This project is licensed under the Creative Commons License 1.0 Universal
-License - see the [LICENSE](LICENSE) file for details.
+License.  See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-Contributions are welcome. Please read the [CONTRIBUTING.md](CONTRIBUTING.md)
-file for details.
-
-### Code of Conduct
-
-Please read the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) file for details on
-the code of conduct.  Long story short, be nice to each other and treat each
-other with respect, compassion, and empathy, especially when you disagree.
-
-## Authors
-
-- Wes Dean
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
