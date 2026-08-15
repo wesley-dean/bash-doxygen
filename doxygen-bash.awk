@@ -199,11 +199,7 @@ function rewrite_param_name(line, old_name, new_name,    pos, tail, name_pos) {
 function rewrite_param_doc_lines(    i, line_number) {
     for (i = 1; i <= param_count; i++) {
         line_number = param_doc_lines[i]
-        doc_lines[line_number] = rewrite_param_name(
-            doc_lines[line_number],
-            param_names[i],
-            emitted_param_names[i]
-        )
+        doc_lines[line_number] = rewrite_param_name(doc_lines[line_number], param_names[i], emitted_param_names[i])
     }
 }
 
