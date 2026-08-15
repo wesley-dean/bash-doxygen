@@ -216,10 +216,14 @@ function build_param_list(    i, joined) {
     return joined
 }
 
-function emit_doc_block(extra_line,    i, line) {
+function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
     print "/**"
     for (i = 1; i <= doc_count; i++) {
         line = doc_lines[i]
+        meta = trim(line)
+        if (suppress_fn && meta ~ /^@fn([ \t]|$)/) {
+            continue
+        }
         if (line == "") {
             print " *"
         } else {
@@ -262,7 +266,7 @@ function emit_function(name,    params) {
     prepare_param_names()
     rewrite_param_doc_lines()
     params = build_param_list()
-    emit_doc_block("")
+    emit_doc_block("", 1)
     print "int " name "(" params ");"
 }
 
