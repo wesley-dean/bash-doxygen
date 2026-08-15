@@ -23,4 +23,10 @@ if awk -f "$ROOT_DIR/doxygen-bash.awk" -- --strict --compact \
     exit 1
 fi
 
+if ! grep -F '@fn documents documented_name but declaration is actual_name' \
+    "$TMP_DIR/strict-mismatch.err" > /dev/null; then
+    printf '%s\n' 'not ok - mismatched @fn diagnostic was not emitted' >&2
+    exit 1
+fi
+
 printf '%s\n' 'ok - filter regressions passed'
