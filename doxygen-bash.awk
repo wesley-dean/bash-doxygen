@@ -56,6 +56,8 @@ function reset_doc(    i) {
     param_count = 0
     delete doc_lines
     delete param_names
+    delete param_doc_lines
+    delete emitted_param_names
 }
 
 function trim(s) {
@@ -113,7 +115,9 @@ function add_doc_line(line,    content, meta) {
         doc_kind = "var"
         doc_name = parse_doc_symbol(meta, "@var")
     } else if (meta ~ /^@param[ \t]+/) {
-        param_names[++param_count] = parse_param_name(meta)
+        param_count++
+        param_names[param_count] = parse_param_name(meta)
+        param_doc_lines[param_count] = doc_count
     }
 }
 
@@ -164,18 +168,53 @@ function unique_param_name(name,    base, n) {
     return name
 }
 
-function build_param_list(    i, clean, joined) {
+function prepare_param_names(    i, clean) {
     delete param_seen
-    joined = ""
+    delete emitted_param_names
 
     for (i = 1; i <= param_count; i++) {
         clean = sanitize_identifier(param_names[i], "arg")
-        clean = unique_param_name(clean)
+        emitted_param_names[i] = unique_param_name(clean)
+    }
+}
 
+function rewrite_param_name(line, old_name, new_name,    pos, tail, name_pos) {
+    pos = index(line, "@param")
+    if (pos == 0) {
+        return line
+    }
+
+    tail = substr(line, pos + 6)
+    if (!match(tail, /[^ \t]/)) {
+        return line
+    }
+
+    name_pos = RSTART
+    return substr(line, 1, pos + 5) \
+           substr(tail, 1, name_pos - 1) \
+           new_name \
+           substr(tail, name_pos + length(old_name))
+}
+
+function rewrite_param_doc_lines(    i, line_number) {
+    for (i = 1; i <= param_count; i++) {
+        line_number = param_doc_lines[i]
+        doc_lines[line_number] = rewrite_param_name(
+            doc_lines[line_number],
+            param_names[i],
+            emitted_param_names[i]
+        )
+    }
+}
+
+function build_param_list(    i, joined) {
+    joined = ""
+
+    for (i = 1; i <= param_count; i++) {
         if (joined != "") {
             joined = joined ", "
         }
-        joined = joined "String " clean
+        joined = joined "String " emitted_param_names[i]
     }
 
     return joined
@@ -224,6 +263,8 @@ function is_probable_function_decl(line) {
 }
 
 function emit_function(name,    params) {
+    prepare_param_names()
+    rewrite_param_doc_lines()
     params = build_param_list()
     emit_doc_block("")
     print "int " name "(" params ");"
