@@ -34,6 +34,21 @@ jobs:
           initial_version: 0.0.1
           tag_prefix: v
 
+      - name: Validate maintained source
+        run: make test-source
+
+      - name: Build and validate release artifact
+        run: |
+          make test-dist \
+            VERSION="${{ steps.calculate-version.outputs.version-string }}"
+
+      - name: Generate and verify release checksum
+        run: |
+          make checksums \
+            VERSION="${{ steps.calculate-version.outputs.version-string }}"
+          cd dist
+          sha256sum -c doxygen-bash.awk.256
+
       - name: Generate release notes
         id: release-notes
         uses: RedCrafter07/release-notes-action@31674bfa3a219e7c661fc0c5b7b3851c741b9965 # pin@v1.0.1
@@ -51,3 +66,6 @@ jobs:
           tag_name: "v${{ steps.calculate-version.outputs.version-string }}"
           draft: false
           prerelease: false
+          files: |
+            dist/doxygen-bash.awk
+            dist/doxygen-bash.awk.256

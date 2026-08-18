@@ -5,18 +5,24 @@ ROOT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT HUP INT TERM
 
+FILTER=${DOXYGEN_BASH_FILTER:-"$ROOT_DIR/doxygen-bash.awk"}
+case "$FILTER" in
+    /*) ;;
+    *) FILTER="$ROOT_DIR/$FILTER" ;;
+esac
+
 for fixture in "$ROOT_DIR"/test/expected/*.cpp; do
     name=${fixture##*/}
     name=${name%.cpp}
 
-    awk -f "$ROOT_DIR/doxygen-bash.awk" -- --compact \
+    awk -f "$FILTER" -- --compact \
         "$ROOT_DIR/test/fixtures/$name.bash" \
         > "$TMP_DIR/$name.cpp"
 
     diff -u "$fixture" "$TMP_DIR/$name.cpp"
 done
 
-if awk -f "$ROOT_DIR/doxygen-bash.awk" -- --strict --compact \
+if awk -f "$FILTER" -- --strict --compact \
     "$ROOT_DIR/test/fixtures/strict-mismatch.bash" \
     > "$TMP_DIR/strict-mismatch.cpp" 2> "$TMP_DIR/strict-mismatch.err"; then
     printf '%s\n' 'not ok - strict mode accepted mismatched @fn documentation' >&2
