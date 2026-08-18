@@ -9,6 +9,8 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7  # Wait 7 days before creating PRs
     commit-message:
       prefix: fix
       prefix-development: chore
