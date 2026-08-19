@@ -158,15 +158,24 @@ With `--strict`, any warning causes the filter to exit non-zero.
 
 ## Testing
 
-Run the test harness from the repository root:
+Run the complete test suite from the repository root:
 
 ```sh
-./test/run-tests.sh
+make test
 ```
 
-The tests execute the awk filter against fixtures in `test/fixtures/` and compare
-its output with files in `test/expected/`.  The suite also verifies that strict
-mode fails when documented intent and Bash declarations disagree.
+The suite uses small, behavior-focused fixtures.  Successful translations in
+`tests/fixtures/` are compared with golden pseudo-C++ output in `tests/expected/`.
+Diagnostic cases in `tests/diagnostics/` verify both normal warning behavior and
+strict-mode failure.  The suite also covers compact/default blank-line behavior
+and runs against both the maintained source and the generated distribution
+artifact.
+
+To exercise the maintained source directly without building `dist/`, run:
+
+```sh
+./tests/run-tests.sh
+```
 
 ## Design notes
 
