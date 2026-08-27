@@ -6,7 +6,7 @@ SHELL := /bin/sh
 DIST_DIR := dist
 SOURCE_FILTER := doxygen-bash.awk
 DIST_FILTER := $(DIST_DIR)/doxygen-bash.awk
-DIST_CHECKSUM := $(DIST_FILTER).256
+DIST_CHECKSUM := $(DIST_FILTER).sha256
 
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || printf '0.0.0-dev')
 BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
@@ -63,7 +63,7 @@ test-dist: build
 ## Generate the SHA-256 checksum for the exact consumer artifact.
 ##
 ## The checksum is generated from inside dist so users can download both files
-## into one directory and verify them with sha256sum -c doxygen-bash.awk.256.
+## into one directory and verify them with sha256sum -c doxygen-bash.awk.sha256.
 checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
