@@ -42,6 +42,7 @@ must not alter the filter's runtime semantics merely to imitate Bash syntax.
 - Preserve the existing executable awk shebang.
 - Avoid introducing runtime behavior or awk namespace solely for build metadata.
 - Generate a SHA-256 checksum for the exact artifact attached to the release.
+- Use a self-describing `.sha256` suffix for newly published checksum assets.
 - Exercise the same regression suite against maintained source and generated
   consumer output.
 - Keep artifact generation deterministic for a fixed source revision and set of
@@ -73,9 +74,16 @@ related projects. Release automation MAY override `VERSION` with the calculated
 semantic version while retaining commit-derived defaults for build date and
 commit.
 
-`make checksums` SHALL generate `dist/doxygen-bash.awk.256` in standard
-`sha256sum` format. The checksum filename intentionally uses the requested
-`.256` suffix rather than the `.sha256` suffix used by some related projects.
+`make checksums` SHALL generate `dist/doxygen-bash.awk.sha256` in standard
+`sha256sum` format. New releases SHALL publish the `.sha256` checksum filename
+only. The longer suffix is intentionally self-describing and avoids ambiguity
+with unrelated uses of `.256`.
+
+Consumers that support historical releases SHOULD prefer an `.sha256` checksum
+asset and MAY fall back to the legacy `.256` name only when the preferred asset
+is absent. They MUST NOT use the legacy name as a fallback for checksum mismatch,
+malformed checksum data, authentication failure, TLS failure, timeout, or server
+errors.
 
 The regression harness SHALL accept an alternate filter path so the same tests
 can validate both the maintained source and `dist/doxygen-bash.awk`. The normal
@@ -86,12 +94,25 @@ generate and verify its checksum, and attach both files to the GitHub Release:
 
 ```text
 dist/doxygen-bash.awk
-dist/doxygen-bash.awk.256
+dist/doxygen-bash.awk.sha256
 ```
 
 Generated `dist/` content remains untracked repository state.
 
 ## Considered Alternatives
+
+### Continue publishing `.256`
+
+The shorter suffix works technically, but it does not identify the checksum
+algorithm clearly and can be associated with unrelated file types. This was
+rejected in favor of the explicit `.sha256` suffix.
+
+### Publish both `.256` and `.sha256`
+
+Publishing both names would ease transition for consumers, but it would create
+permanent duplicate release assets and leave two producer conventions in active
+use. This was rejected in favor of a single producer convention plus read-side
+compatibility in downstream consumers.
 
 ### Release the maintained source file directly
 
@@ -125,8 +146,13 @@ point for both contexts.
 
 Consumers receive a clearly identified `doxygen-bash.awk` release artifact whose
 header records the version, source commit, and commit date associated with its
-build. The corresponding `.256` file can be verified with standard SHA-256
+build. The corresponding `.sha256` file can be verified with standard SHA-256
 tooling.
+
+Historical releases that already contain `.256` assets remain unchanged.
+Downstream tools can preserve compatibility with those releases by trying the
+preferred `.sha256` asset first and falling back to `.256` only when the new name
+is not present.
 
 The root-level source remains concise and hand-maintained. Generated provenance
 is present only in `dist/`, which is already ignored by the repository.
