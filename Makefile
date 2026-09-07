@@ -12,7 +12,7 @@ VERSION ?= $(shell git describe --tags --always 2>/dev/null || printf '0.0.0-dev
 BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
 BUILD_DATE ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || printf 'unknown')
 
-.PHONY: all build checksums clean test test-source test-dist
+.PHONY: all build checksums clean lint test test-source test-dist
 
 all: build
 
@@ -68,7 +68,9 @@ checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
 lint:
-	echo true
+	docker run --rm \
+		-v "$$(pwd):/tmp/lint:rw" \
+		ghcr.io/oxsecurity/megalinter:v10
 
 clean:
 	rm -rf "$(DIST_DIR)"
