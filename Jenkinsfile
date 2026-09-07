@@ -1,15 +1,15 @@
 pipeline {
-    agent { label 'docker' }
+  agent { label 'docker' }
 
-		options {
-        withFolderProperties()
-    }
+  options {
+    withFolderProperties()
+  }
 
-    stages {
-        stage('Lint') {
-            steps {
-                sh 'make lint'
-            }
-        }
+  stages {
+    stage('Lint') {
+      steps {
+        sh 'make lint'
+      }
     }
+  }
 }
