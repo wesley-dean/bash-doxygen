@@ -19,6 +19,15 @@ LINT_TAG ?= latest
 LINTER ?= $(LINT_REGISTRY)/$(LINT_IMAGE):$(LINT_TAG)
 
 LINT_GRYPE_DB_URL ?= https://grype.anchore.io/databases
+LINT_GRYPE_CACHE_VOLUME ?=
+LINT_GRYPE_CACHE_DIR ?= /var/cache/grype/db
+
+LINT_GRYPE_CACHE_ARGS :=
+ifneq ($(strip $(LINT_GRYPE_CACHE_VOLUME)),)
+LINT_GRYPE_CACHE_ARGS := \
+	-v "$(LINT_GRYPE_CACHE_VOLUME):$(LINT_GRYPE_CACHE_DIR):rw" \
+	-e GRYPE_DB_CACHE_DIR="$(LINT_GRYPE_CACHE_DIR)"
+endif
 
 .PHONY: all build checksums clean lint test test-source test-dist
 
@@ -76,7 +85,7 @@ checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
 lint:
-	docker run --rm \
+	docker run --rm $(LINT_GRYPE_CACHE_ARGS) \
 		-v "$$(pwd):/tmp/lint:rw" \
 		-e GRYPE_DB_UPDATE_URL="$(LINT_GRYPE_DB_URL)" \
 		$(LINTER)
