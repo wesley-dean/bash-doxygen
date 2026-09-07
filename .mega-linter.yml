@@ -51,7 +51,7 @@ REPOSITORY_TRUFFLEHOG_ARGUMENTS: "--exclude-paths=.trufflehogignore"
 REPOSITORY_CHECKOV_ARGUMENTS: "--download-external-modules true"
 
 # make sure Common Platform Enumerations (CPEs) are present
-REPOSITORY_GRYPE_ARGUMENTS: "--add-cpes-if-none"
+REPOSITORY_GRYPE_ARGUMENTS: "--add-cpes-if-none -vv"
 
 # make sure that MegaLinter's reports folder is clean at the start of each
 # run so that tools like DefectDojo don't get confused by old reports
