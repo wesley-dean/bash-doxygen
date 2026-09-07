@@ -36,6 +36,9 @@ DISABLE_ERRORS: true
 # use prettier for JavaScript code formatting
 JAVASCRIPT_DEFAULT_STYLE: prettier
 
+# use Jenkins-specific Groovy rules while preserving this repo's two-space style
+GROOVY_NPM_GROOVY_LINT_CONFIG_FILE: .groovylintrc.json
+
 # MegaLinter v6 supports SARIF reporters; if GitHub Advanced Security is not
 # available, this may need to be set to false so that GitHub doesn't complain
 # and fail the workflow.
