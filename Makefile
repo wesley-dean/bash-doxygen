@@ -67,5 +67,8 @@ test-dist: build
 checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
+lint:
+	echo true
+
 clean:
 	rm -rf "$(DIST_DIR)"
