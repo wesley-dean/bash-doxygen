@@ -12,34 +12,7 @@ VERSION ?= $(shell git describe --tags --always 2>/dev/null || printf '0.0.0-dev
 BUILD_COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || printf 'unknown')
 BUILD_DATE ?= $(shell git show -s --format=%cI HEAD 2>/dev/null || printf 'unknown')
 
-LINT_REGISTRY ?= ghcr.io
-LINT_IMAGE ?= oxsecurity/megalinter
-LINT_TAG ?= latest
-
-LINTER ?= $(LINT_REGISTRY)/$(LINT_IMAGE):$(LINT_TAG)
-
-LINT_GRYPE_DB_URL ?= https://grype.anchore.io/databases
-LINT_GRYPE_CACHE_VOLUME ?=
-LINT_GRYPE_CACHE_DIR ?= /var/cache/grype/db
-
-LINT_GRYPE_CACHE_ARGS :=
-ifneq ($(strip $(LINT_GRYPE_CACHE_VOLUME)),)
-LINT_GRYPE_CACHE_ARGS := \
-	-v "$(LINT_GRYPE_CACHE_VOLUME):$(LINT_GRYPE_CACHE_DIR):rw" \
-	-e GRYPE_DB_CACHE_DIR="$(LINT_GRYPE_CACHE_DIR)"
-endif
-
-LINT_TRIVY_CACHE_VOLUME ?=
-LINT_TRIVY_CACHE_DIR ?= /var/cache/trivy
-
-LINT_TRIVY_CACHE_ARGS :=
-ifneq ($(strip $(LINT_TRIVY_CACHE_VOLUME)),)
-LINT_TRIVY_CACHE_ARGS := \
-	-v "$(LINT_TRIVY_CACHE_VOLUME):$(LINT_TRIVY_CACHE_DIR):rw" \
-	-e TRIVY_CACHE_DIR="$(LINT_TRIVY_CACHE_DIR)"
-endif
-
-.PHONY: all build checksums clean lint test test-source test-dist
+.PHONY: all build checksums clean test test-source test-dist
 
 all: build
 
@@ -94,11 +67,7 @@ test-dist: build
 checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
-lint:
-	docker run --rm $(LINT_GRYPE_CACHE_ARGS) $(LINT_TRIVY_CACHE_ARGS) \
-		-v "$$(pwd):/tmp/lint:rw" \
-		-e GRYPE_DB_UPDATE_URL="$(LINT_GRYPE_DB_URL)" \
-		$(LINTER)
-
 clean:
 	rm -rf "$(DIST_DIR)"
+
+include mk/megalinter.mk
