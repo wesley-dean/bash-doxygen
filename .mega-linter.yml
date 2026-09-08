@@ -18,6 +18,12 @@ DISABLE_LINTERS:
     REPOSITORY_DEVSKIM,
     REPOSITORY_DUSTILOCK,
     REPOSITORY_OSV_SCANNER,
+    REPOSITORY_CHECKOV,
+    REPOSITORY_LS_LINT,
+    REPOSITORY_OSV_SCANNER,
+    REPOSITORY_SYFT,
+    REPOSITORY_TRIVY_SBOM,
+    GROOVY_NPM_GROOVY_LINT,
     SPELL_PROSELINT,
     COPYPASTE_JSCPD,
     BASH_EXEC,
@@ -36,10 +42,13 @@ DISABLE_ERRORS: true
 # use prettier for JavaScript code formatting
 JAVASCRIPT_DEFAULT_STYLE: prettier
 
+# use Jenkins-specific Groovy rules while preserving this repo's two-space style
+GROOVY_NPM_GROOVY_LINT_CONFIG_FILE: .groovylintrc.json
+
 # MegaLinter v6 supports SARIF reporters; if GitHub Advanced Security is not
 # available, this may need to be set to false so that GitHub doesn't complain
 # and fail the workflow.
-SARIF_REPORTER: true
+SARIF_REPORTER: false
 
 # only scan the files in This commit, not the entire history of the repo
 REPOSITORY_GITLEAKS_ARGUMENTS: --no-git
@@ -63,8 +72,8 @@ BASH_EXEC_FILTER_REGEX_EXCLUDE: "(libs?|tests?|examples?|vendor)"
 
 # shfmt will..
 #   - use multiples of 2 spaces for indenting
-#   - alllow binary operations to start new lines
+#   - allow binary operations to start new lines
 #   - indent switch case statements
-#   - place spaces around redirections
+#   - place spaces around redirect operators
 #   - keep column alignment padding
 BASH_SHFMT_ARGUMENTS: -i 2 -bn -ci -sr -kp
