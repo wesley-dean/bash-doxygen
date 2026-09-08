@@ -69,3 +69,5 @@ checksums: build
 
 clean:
 	rm -rf "$(DIST_DIR)"
+
+include mk/megalinter.mk
