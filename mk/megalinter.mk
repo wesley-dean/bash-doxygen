@@ -41,6 +41,39 @@ LINT_CHECKOV_EXTERNAL_MODULES_ARGS := \
 	-e EXTERNAL_MODULES_DIR="$(LINT_CHECKOV_EXTERNAL_MODULES_DIR)"
 endif
 
+LINT_KINGFISHER_CACHE_VOLUME ?=
+LINT_KINGFISHER_CACHE_DIR ?= /var/cache/kingfisher/rule-cache
+
+LINT_KINGFISHER_CACHE_ARGS :=
+ifneq ($(strip $(LINT_KINGFISHER_CACHE_VOLUME)),)
+LINT_KINGFISHER_CACHE_ARGS := \
+	-v "$(LINT_KINGFISHER_CACHE_VOLUME):$(LINT_KINGFISHER_CACHE_DIR):rw" \
+	-e KF_RULE_CACHE_DIR="$(LINT_KINGFISHER_CACHE_DIR)"
+endif
+
+LINT_SYFT_CACHE_VOLUME ?=
+LINT_SYFT_CACHE_DIR ?= /var/cache/syft
+
+LINT_SYFT_CACHE_ARGS :=
+ifneq ($(strip $(LINT_SYFT_CACHE_VOLUME)),)
+LINT_SYFT_CACHE_ARGS := \
+	-v "$(LINT_SYFT_CACHE_VOLUME):$(LINT_SYFT_CACHE_DIR):rw" \
+	-e SYFT_CACHE_DIR="$(LINT_SYFT_CACHE_DIR)"
+endif
+
+# OSV-Scanner uses its local database cache only when repository policy enables
+# its local/offline vulnerability database mode.  Leaving the volume unset keeps
+# the scanner's normal online behavior unchanged.
+LINT_OSV_CACHE_VOLUME ?=
+LINT_OSV_CACHE_DIR ?= /var/cache/osv-scanner
+
+LINT_OSV_CACHE_ARGS :=
+ifneq ($(strip $(LINT_OSV_CACHE_VOLUME)),)
+LINT_OSV_CACHE_ARGS := \
+	-v "$(LINT_OSV_CACHE_VOLUME):$(LINT_OSV_CACHE_DIR):rw" \
+	-e OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY="$(LINT_OSV_CACHE_DIR)"
+endif
+
 .PHONY: lint
 
 lint:
@@ -48,6 +81,9 @@ lint:
 		$(LINT_GRYPE_CACHE_ARGS) \
 		$(LINT_TRIVY_CACHE_ARGS) \
 		$(LINT_CHECKOV_EXTERNAL_MODULES_ARGS) \
+		$(LINT_KINGFISHER_CACHE_ARGS) \
+		$(LINT_SYFT_CACHE_ARGS) \
+		$(LINT_OSV_CACHE_ARGS) \
 		-v "$$(pwd):/tmp/lint:rw" \
 		-e GRYPE_DB_UPDATE_URL="$(LINT_GRYPE_DB_URL)" \
 		$(LINTER)
