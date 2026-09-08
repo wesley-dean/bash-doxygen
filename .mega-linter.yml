@@ -48,7 +48,7 @@ GROOVY_NPM_GROOVY_LINT_CONFIG_FILE: .groovylintrc.json
 # MegaLinter v6 supports SARIF reporters; if GitHub Advanced Security is not
 # available, this may need to be set to false so that GitHub doesn't complain
 # and fail the workflow.
-SARIF_REPORTER: true
+SARIF_REPORTER: false
 
 # only scan the files in This commit, not the entire history of the repo
 REPOSITORY_GITLEAKS_ARGUMENTS: --no-git
