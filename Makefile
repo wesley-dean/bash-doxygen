@@ -29,6 +29,16 @@ LINT_GRYPE_CACHE_ARGS := \
 	-e GRYPE_DB_CACHE_DIR="$(LINT_GRYPE_CACHE_DIR)"
 endif
 
+LINT_TRIVY_CACHE_VOLUME ?=
+LINT_TRIVY_CACHE_DIR ?= /var/cache/trivy
+
+LINT_TRIVY_CACHE_ARGS :=
+ifneq ($(strip $(LINT_TRIVY_CACHE_VOLUME)),)
+LINT_TRIVY_CACHE_ARGS := \
+	-v "$(LINT_TRIVY_CACHE_VOLUME):$(LINT_TRIVY_CACHE_DIR):rw" \
+	-e TRIVY_CACHE_DIR="$(LINT_TRIVY_CACHE_DIR)"
+endif
+
 .PHONY: all build checksums clean lint test test-source test-dist
 
 all: build
@@ -85,7 +95,7 @@ checksums: build
 	cd "$(DIST_DIR)" && sha256sum "$(notdir $(DIST_FILTER))" >"$(notdir $(DIST_CHECKSUM))"
 
 lint:
-	docker run --rm $(LINT_GRYPE_CACHE_ARGS) \
+	docker run --rm $(LINT_GRYPE_CACHE_ARGS) $(LINT_TRIVY_CACHE_ARGS) \
 		-v "$$(pwd):/tmp/lint:rw" \
 		-e GRYPE_DB_UPDATE_URL="$(LINT_GRYPE_DB_URL)" \
 		$(LINTER)
