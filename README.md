@@ -111,6 +111,52 @@ awk -f ./doxygen-bash.awk -- --strict "$@"
 
 Then reference that wrapper from `FILTER_PATTERNS`.
 
+## Generated reference documentation
+
+This repository publishes its own Doxygen reference documentation and deliberately
+dogfoods both `awk-doxygen` and `bash-doxygen` while doing so.
+
+Stable documentation dependencies are declared separately from the ordinary build
+in `dependencies-docs.txt`.  A pinned `bashdeps` release materializes the pinned
+filter artifacts beneath `vendor/`.  The current stable pins are `awk-doxygen`
+v0.0.4 and `bash-doxygen` v0.0.14.
+
+Prepare the documentation dependencies with:
+
+```sh
+make deps-docs
+```
+
+Verify them without network access or repair with:
+
+```sh
+make deps-docs-check
+```
+
+Generate the stable reference tree with:
+
+```sh
+make docs
+```
+
+The generated HTML lives under `doc/reference/`, is ignored by Git, and is
+published to GitHub Pages by CI rather than committed to the repository.
+`make docs` consumes already-prepared dependency state; it does not synchronize
+or repair dependencies itself.
+
+Stable Pages generation intentionally uses the released, SHA-256-pinned filters
+in `vendor/`.  This exercises the same consumer boundary downstream projects use
+instead of silently documenting with moving repository-local source.
+
+ADR-006 adds two complementary canaries without moving those stable pins.  Pull
+requests and `main` generate the same reference corpus with current repository
+`doxygen-bash.awk` as the Bash filter, providing pre-release integration feedback.
+When a release is published, a second canary downloads the exact released
+`doxygen-bash.awk` asset and checksum, verifies the bytes, and generates the same
+reference documentation.  This catches both source-level regressions before
+release and packaging failures after release while leaving stable Pages
+publication reproducible.
+
 ## Supported declarations
 
 The filter recognizes documented functions using common Bash forms:
@@ -183,6 +229,12 @@ This project is not a full Bash parser.  It is a documentation compiler for the
 small subset of Bash declarations that can reasonably follow a Doxygen block.
 The parser is permissive about whitespace and declaration style, but strict
 about documented intent when `@fn` or `@var` is provided.
+
+## Governance
+
+Architecture decisions are recorded in `doc/adr/`, with concise summaries in
+`doc/decisions.md`.  ADR-005 governs stable reference publication and ADR-006
+governs current-source and released-artifact documentation canaries.
 
 ## License
 

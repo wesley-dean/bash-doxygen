@@ -1,4 +1,17 @@
 #!/bin/sh
+## @file run-tests.sh
+## @brief Runs the bash-doxygen behavior-focused regression suite.
+## @details
+## Exercises the maintained or generated Bash Doxygen filter supplied through
+## DOXYGEN_BASH_FILTER.  Successful fixtures, diagnostic fixtures, and default
+## line-preserving behavior are validated with temporary output removed on exit.
+## This harness is maintained shell source and is also used to dogfood the
+## selected bash-doxygen filter during generated reference documentation builds.
+## @par Examples
+## @code
+## sh ./tests/run-tests.sh
+## DOXYGEN_BASH_FILTER=dist/doxygen-bash.awk sh ./tests/run-tests.sh
+## @endcode
 set -eu
 
 ROOT_DIR=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
@@ -13,11 +26,35 @@ esac
 
 CASE_COUNT=0
 
+## @fn fail()
+## @brief Reports a failed regression assertion and terminates the harness.
+## @details
+## Centralizes TAP-like failure output so individual assertions stop the suite
+## immediately without duplicating diagnostic formatting and exit behavior.
+## @param message Human-readable assertion failure supplied as the first argument.
+## @retval 1 The harness exits with failure.
+## @par Examples
+## @code
+## fail "missing input fixture"
+## @endcode
 fail() {
     printf 'not ok - %s\n' "$1" >&2
     exit 1
 }
 
+## @fn normalize_warnings()
+## @brief Removes source-location prefixes from filter diagnostics.
+## @details
+## Golden diagnostic fixtures describe stable warning text rather than temporary
+## source paths and record prefixes.  This helper strips that generated prefix
+## before a diagnostic result is compared with its expected file.
+## @param path File containing raw filter diagnostics as the first argument.
+## @returns Normalized diagnostic text on standard output.
+## @retval 0 The sed transformation completed successfully.
+## @par Examples
+## @code
+## normalize_warnings "$TMP_DIR/example.err"
+## @endcode
 normalize_warnings() {
     sed 's/^.*: warning: //' "$1"
 }
