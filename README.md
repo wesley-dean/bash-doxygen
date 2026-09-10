@@ -118,8 +118,9 @@ dogfoods both `awk-doxygen` and `bash-doxygen` while doing so.
 
 Stable documentation dependencies are declared separately from the ordinary build
 in `dependencies-docs.txt`.  A pinned `bashdeps` release materializes the pinned
-filter artifacts beneath `vendor/`.  The current stable pins are `awk-doxygen`
-v0.0.4 and `bash-doxygen` v0.0.14.
+filter artifacts and ADR navigation tooling beneath `vendor/`.  The current
+stable pins are `awk-doxygen` v0.0.4, `bash-doxygen` v0.0.14, and `adrctl`
+v0.0.13.
 
 Prepare the documentation dependencies with:
 
@@ -133,20 +134,31 @@ Verify them without network access or repair with:
 make deps-docs-check
 ```
 
+Generate the ephemeral linked ADR landing page from already-prepared dependency
+state with:
+
+```sh
+make adr-index
+```
+
 Generate the stable reference tree with:
 
 ```sh
 make docs
 ```
 
-The generated HTML lives under `doc/reference/`, is ignored by Git, and is
-published to GitHub Pages by CI rather than committed to the repository.
+The generated ADR landing page lives at `doc/adr/README.md`; the generated HTML
+lives under `doc/reference/`.  Both are ignored by Git and are regenerated from
+maintained source and pinned documentation tooling rather than committed.
 `make docs` consumes already-prepared dependency state; it does not synchronize
 or repair dependencies itself.
 
 Stable Pages generation intentionally uses the released, SHA-256-pinned filters
 in `vendor/`.  This exercises the same consumer boundary downstream projects use
-instead of silently documenting with moving repository-local source.
+instead of silently documenting with moving repository-local source.  The same
+shared documentation path generates the ADR landing page before Doxygen for
+stable publication and both ADR-006 canaries, so those paths validate the same
+site structure.
 
 ADR-006 adds two complementary canaries without moving those stable pins.  Pull
 requests and `main` generate the same reference corpus with current repository
@@ -156,6 +168,10 @@ When a release is published, a second canary downloads the exact released
 reference documentation.  This catches both source-level regressions before
 release and packaging failures after release while leaving stable Pages
 publication reproducible.
+
+Routine documentation generation includes linked ADR navigation only; it does
+not automatically compose an ADR relationship graph.  ADR-007 governs the
+landing-page generation and shared stable/canary boundary.
 
 ## Supported declarations
 
@@ -233,8 +249,9 @@ about documented intent when `@fn` or `@var` is provided.
 ## Governance
 
 Architecture decisions are recorded in `doc/adr/`, with concise summaries in
-`doc/decisions.md`.  ADR-005 governs stable reference publication and ADR-006
-governs current-source and released-artifact documentation canaries.
+`doc/decisions.md`.  ADR-005 governs stable reference publication, ADR-006
+governs current-source and released-artifact documentation canaries, and ADR-007
+governs the ephemeral ADR landing page shared by all documentation paths.
 
 ## License
 
