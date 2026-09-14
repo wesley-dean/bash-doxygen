@@ -20,5 +20,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin@11bd71901bbe5b1630ceea73d27597364c9af683
 
+      - name: Install validation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes gawk
+
+      - name: Validate maintained AWK source
+        run: make check
+
+      - name: Synchronize and verify build dependencies
+        run: |
+          make deps
+          make deps-check
+
       - name: Run test suite
         run: make test

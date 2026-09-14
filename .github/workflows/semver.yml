@@ -34,20 +34,32 @@ jobs:
           initial_version: 0.0.1
           tag_prefix: v
 
-      - name: Validate maintained source
-        run: make test-source
-
-      - name: Build and validate release artifact
+      - name: Install release validation tools
         run: |
+          sudo apt-get update
+          sudo apt-get install --yes gawk
+
+      - name: Validate maintained source
+        run: make check test-source
+
+      - name: Synchronize and verify build dependencies
+        run: |
+          make deps
+          make deps-check
+
+      - name: Build and validate release artifacts
+        run: |
+          make build \
+            VERSION="${{ steps.calculate-version.outputs.version-string }}"
           make test-dist \
             VERSION="${{ steps.calculate-version.outputs.version-string }}"
 
-      - name: Generate and verify release checksum
+      - name: Verify release checksums
         run: |
-          make checksums \
-            VERSION="${{ steps.calculate-version.outputs.version-string }}"
           cd dist
+          sha256sum -c doxygen-bash.dev.awk.sha256
           sha256sum -c doxygen-bash.awk.sha256
+          sha256sum -c doxygen-bash.min.awk.sha256
 
       - name: Generate release notes
         id: release-notes
@@ -67,5 +79,9 @@ jobs:
           draft: false
           prerelease: false
           files: |
+            dist/doxygen-bash.dev.awk
+            dist/doxygen-bash.dev.awk.sha256
             dist/doxygen-bash.awk
             dist/doxygen-bash.awk.sha256
+            dist/doxygen-bash.min.awk
+            dist/doxygen-bash.min.awk.sha256

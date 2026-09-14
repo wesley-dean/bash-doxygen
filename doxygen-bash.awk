@@ -36,20 +36,20 @@ BEGIN {
     strict = (strict ? strict : 0)
     keep_blanks = (compact ? 0 : 1)
 
-    for (i = 1; i < ARGC; i++) {
-        if (ARGV[i] == "--strict") {
+    for (arg_index = 1; arg_index < ARGC; arg_index++) {
+        if (ARGV[arg_index] == "--strict") {
             strict = 1
-            ARGV[i] = ""
-        } else if (ARGV[i] == "--compact") {
+            ARGV[arg_index] = ""
+        } else if (ARGV[arg_index] == "--compact") {
             keep_blanks = 0
-            ARGV[i] = ""
+            ARGV[arg_index] = ""
         }
     }
 
     reset_doc()
 }
 
-function reset_doc(    i) {
+function reset_doc() {
     doc_count = 0
     doc_kind = ""
     doc_name = ""
@@ -143,7 +143,7 @@ function sanitize_identifier(name, fallback,    s) {
     gsub(/^[.][.][.]/, "", s)
     gsub(/^--/, "", s)
     gsub(/\[\]$/, "", s)
-    gsub(/=$/, "", s)
+    gsub(/[=]$/, "", s)
     gsub(/-/, "_", s)
     gsub(/[^A-Za-z0-9_:]/, "_", s)
 
@@ -236,7 +236,7 @@ function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
     print " */"
 }
 
-function normalize_func_decl(line,    s, name) {
+function normalize_func_decl(line,    s) {
     s = line
     sub(/#.*/, "", s)
     s = trim(s)
@@ -270,7 +270,7 @@ function emit_function(name,    params) {
     print "int " name "(" params ");"
 }
 
-function classify_variable(raw_line, info,    line, prefix, opts, name, value, eqpos, token, rest) {
+function classify_variable(raw_line, info,    line, opts, name, value, eqpos, token) {
     delete info
     line = raw_line
     sub(/#.*/, "", line)
@@ -362,12 +362,6 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
     return 1
 }
 
-function is_probable_variable_decl(line,    ok) {
-    ok = classify_variable(line, tmp_info)
-    delete tmp_info
-    return ok
-}
-
 function variable_meta(info,    meta) {
     meta = "@details Bash variable: "
 
@@ -446,15 +440,15 @@ function flush_unmatched_docs(reason) {
 }
 
 {
-    line = $0
+    source_line = $0
 
-    if (is_doc_line(line)) {
-        add_doc_line(line)
+    if (is_doc_line(source_line)) {
+        add_doc_line(source_line)
         next
     }
 
     if (doc_count > 0) {
-        if (is_blank(line)) {
+        if (is_blank(source_line)) {
             if (flush_file_docs_if_needed()) {
                 emit_blank()
             }
@@ -465,8 +459,8 @@ function flush_unmatched_docs(reason) {
             emit_blank()
         }
 
-        if (doc_count > 0 && is_probable_function_decl(line)) {
-            fn_name = normalize_func_decl(line)
+        if (doc_count > 0 && is_probable_function_decl(source_line)) {
+            fn_name = normalize_func_decl(source_line)
             if (doc_kind == "var") {
                 fail_or_warn("@var block precedes function declaration " fn_name)
             }
@@ -478,7 +472,7 @@ function flush_unmatched_docs(reason) {
             next
         }
 
-        if (doc_count > 0 && classify_variable(line, var_info)) {
+        if (doc_count > 0 && classify_variable(source_line, var_info)) {
             if (doc_kind == "fn") {
                 fail_or_warn("@fn block precedes variable declaration " var_info["name"])
             }

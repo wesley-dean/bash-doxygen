@@ -1,187 +1,262 @@
-# ADR-003: Build and release a versioned doxygen-bash artifact
+# ADR-003: Build and release versioned doxygen-bash artifacts
 
 Date: 2026-08-18
+Last updated: 2026-09-14
 
 ## Status
 
-Proposed
+Accepted
 
 ## Intent and Documentation Posture
 
 This ADR defines the boundary between the maintained `doxygen-bash.awk` source
-file and the file distributed to consumers through GitHub Releases. It records
-why the release file is generated, what provenance it carries, how integrity is
-represented, and which behaviors the build process must preserve.
+file and the files distributed to consumers through GitHub Releases.  It records
+why release files are generated, what provenance they carry, how integrity is
+represented, how minification dependencies are trusted, and which behaviors the
+build process must preserve.
 
 ## Context
 
-`bash-doxygen` is maintained as a single portable awk source file named
-`doxygen-bash.awk`. Before this decision, the semantic-versioning workflow
-created GitHub Releases but did not attach a consumer artifact. A release could
-therefore identify a source revision without providing one explicit file for
-consumers to download and verify.
+`bash-doxygen` is maintained as a single portable AWK source file named
+`doxygen-bash.awk`.  The project originally generated one consumer artifact with
+version, build date, and source-commit provenance.  That contract provided a
+clear release boundary, but it forced one representation to serve development,
+ordinary consumption, and size-sensitive distribution simultaneously.
 
-Related projects such as Bootstrap, mktext, and adrctl establish a stronger
-release boundary. Maintained source is transformed into a generated consumer
-artifact carrying version, build date, and source-commit provenance. A checksum
-is generated for the exact bytes that are released. That pattern makes the
-relationship between source, build, and release observable without requiring a
-consumer to reconstruct it from repository state.
+Related projects now use three generated representations:
 
-The awk implementation requires one language-specific constraint. In a Bash
-artifact, lines such as `PRODUCT_VERSION=value` are ordinary assignments. At awk
-top level, an assignment expression can act as a pattern and therefore risks
-changing record-processing behavior through awk's default action. Build metadata
-must not alter the filter's runtime semantics merely to imitate Bash syntax.
+1. a development artifact retaining source documentation and comments;
+2. an ordinary artifact with full-line source comments removed; and
+3. a minified artifact transformed by a separately released AWK Minifier.
+
+The three representations must remain behaviorally equivalent.  Their different
+sizes and comment content are distribution concerns rather than different runtime
+interfaces.
+
+The AWK Minifier is executable build tooling.  Its exact bytes therefore require
+an explicit dependency boundary.  The project already bootstraps a pinned
+`bashdeps.bash` release and can use a separate ordinary build manifest without
+mixing build tooling into `dependencies-docs.txt`, whose role is governed by
+ADR-005.
+
+The AWK implementation also retains one language-specific provenance constraint.
+Bare top-level AWK assignments can participate in record processing, so generated
+build metadata must remain comments rather than runtime assignments.
 
 ## Decision Drivers
 
 - Preserve `doxygen-bash.awk` as the maintained source filename.
-- Publish `doxygen-bash.awk` as the release artifact filename.
-- Make released bytes self-describing with version, date, and commit provenance.
-- Preserve the existing executable awk shebang.
-- Avoid introducing runtime behavior or awk namespace solely for build metadata.
-- Generate a SHA-256 checksum for the exact artifact attached to the release.
-- Use a self-describing `.sha256` suffix for newly published checksum assets.
-- Exercise the same regression suite against maintained source and generated
-  consumer output.
-- Keep artifact generation deterministic for a fixed source revision and set of
-  build metadata inputs.
+- Preserve `doxygen-bash.awk` as the canonical ordinary consumer filename.
+- Provide a documented development representation and a smaller minified
+  representation without changing runtime semantics.
+- Keep released bytes self-describing with version, date, commit, artifact role,
+  and, for minified output, minifier provenance.
+- Preserve an executable AWK shebang for every executable artifact.
+- Avoid runtime behavior or AWK namespace solely for build metadata.
+- Pin executable build tooling by immutable URL and SHA-256 digest.
+- Keep dependency acquisition explicit and keep `make build` network-free.
+- Generate and publish a SHA-256 checksum for every executable artifact.
+- Exercise the same regression suite against maintained source and every
+  generated AWK representation.
+- Keep artifact generation deterministic for a fixed source revision, dependency
+  state, and set of build metadata inputs.
 
 ## Decision
 
-The project SHALL provide a Makefile as the canonical build interface.
+The project SHALL use the Makefile as the canonical build interface.
 
-`make build` SHALL generate `dist/doxygen-bash.awk` from the maintained root-level
-`doxygen-bash.awk`. The generated file SHALL preserve `#!/usr/bin/awk -f` as its
-first line and SHALL insert a provenance header immediately after the shebang.
-The header SHALL identify the generated-file boundary, the maintained source,
-and these build fields:
+### Build dependency boundary
+
+Ordinary build dependencies SHALL be declared in:
 
 ```text
-# DOXYGEN_BASH_VERSION=<version>
-# DOXYGEN_BASH_BUILD_DATE=<date>
-# DOXYGEN_BASH_BUILD_COMMIT=<commit>
+dependencies.txt
 ```
 
-These values SHALL remain comments. They are provenance metadata rather than
-runtime configuration, and representing them as comments prevents the build
-header from altering awk execution.
+The manifest SHALL be separate from the documentation-only
+`dependencies-docs.txt` manifest governed by ADR-005.
 
-`VERSION`, `BUILD_DATE`, and `BUILD_COMMIT` SHALL be Make inputs. Their defaults
-SHALL be derived from Git where possible, following the build pattern used by
-related projects. Release automation MAY override `VERSION` with the calculated
-semantic version while retaining commit-derived defaults for build date and
-commit.
+The build manifest SHALL pin the released AWK Minifier artifact used to create
+the minified representation.  The initial pin for this three-artifact contract
+is:
 
-`make checksums` SHALL generate `dist/doxygen-bash.awk.sha256` in standard
-`sha256sum` format. New releases SHALL publish the `.sha256` checksum filename
-only. The longer suffix is intentionally self-describing and avoids ambiguity
-with unrelated uses of `.256`.
+```text
+Repository: wesley-dean/awk-minifier
+Release:    v0.2.4
+Artifact:   awk-minifier.awk
+Destination: vendor/awk-minifier.awk
+SHA-256:    9668287c394a48e6143b63074fea8ab9fed240ef0637ac169780e08e30661803
+```
 
-Consumers that support historical releases SHOULD prefer an `.sha256` checksum
-asset and MAY fall back to the legacy `.256` name only when the preferred asset
-is absent. They MUST NOT use the legacy name as a fallback for checksum mismatch,
-malformed checksum data, authentication failure, TLS failure, timeout, or server
-errors.
+`make deps` MAY use the network to synchronize ordinary build dependencies.
+`make deps-check` SHALL verify prepared dependency state without network access or
+repair.
 
-The regression harness SHALL accept an alternate filter path so the same tests
-can validate both the maintained source and `dist/doxygen-bash.awk`. The normal
-CI test workflow SHALL run both paths.
+`make build` SHALL NOT synchronize or repair dependencies.  It SHALL verify the
+prepared build dependency state and fail visibly when the pinned minifier is
+missing or has unexpected bytes.
 
-The semantic-versioning workflow SHALL build and validate the consumer artifact,
-generate and verify its checksum, and attach both files to the GitHub Release:
+### Development artifact
+
+`make build` SHALL generate:
+
+```text
+dist/doxygen-bash.dev.awk
+```
+
+The development artifact SHALL preserve the maintained source body, including
+source documentation and implementation comments.  It SHALL preserve
+`#!/usr/bin/awk -f` as its first line and add a generated provenance header that
+identifies the artifact as `development`, identifies the maintained source, and
+records:
+
+```text
+DOXYGEN_BASH_VERSION=<version>
+DOXYGEN_BASH_BUILD_DATE=<date>
+DOXYGEN_BASH_BUILD_COMMIT=<commit>
+```
+
+### Ordinary artifact
+
+The build SHALL derive:
 
 ```text
 dist/doxygen-bash.awk
-dist/doxygen-bash.awk.sha256
 ```
 
-Generated `dist/` content remains untracked repository state.
+from the development artifact.  It SHALL preserve the executable shebang and the
+build-owned provenance header while removing full-line comments from the source
+body.  It SHALL identify itself as the `ordinary` artifact.
+
+`dist/doxygen-bash.awk` remains the canonical default consumer artifact.  Existing
+downstream dependency declarations and ADR-006's exact-release documentation
+canary may therefore continue using this filename unless they intentionally opt
+into another representation.
+
+### Minified artifact
+
+The build SHALL derive:
+
+```text
+dist/doxygen-bash.min.awk
+```
+
+from the ordinary artifact body using the bashdeps-pinned
+`vendor/awk-minifier.awk` artifact.
+
+The build-owned provenance header SHALL remain outside AWK Minifier's transform
+input.  The generated minified header SHALL record the ordinary provenance fields
+plus:
+
+```text
+Minifier: AWK Minifier v0.2.4
+```
+
+The minified representation SHALL remain an executable AWK program with the same
+observable filter behavior as maintained source and the other generated
+representations.
+
+### Integrity artifacts
+
+The build SHALL produce one standard `sha256sum`-format checksum beside each AWK
+artifact:
+
+```text
+dist/doxygen-bash.dev.awk.sha256
+dist/doxygen-bash.awk.sha256
+dist/doxygen-bash.min.awk.sha256
+```
+
+The complete release contract is therefore six files: three executable AWK
+artifacts and three adjacent SHA-256 files.
+
+### Validation and release
+
+`VERSION`, `BUILD_DATE`, and `BUILD_COMMIT` SHALL remain Make inputs.  Release
+automation MAY override `VERSION` with the calculated semantic version while
+retaining commit-derived defaults for build date and commit.
+
+The regression harness SHALL accept explicit filter paths so one semantic suite
+can validate maintained source and all generated AWK artifacts.  Generated
+artifact validation SHALL also cover provenance expectations and adjacent
+checksum verification.
+
+The semantic-versioning workflow SHALL prepare and verify build dependencies,
+build and test all three exact release artifacts, verify all three checksums, and
+attach all six files to the GitHub Release.
+
+Generated `dist/` and `vendor/` state remains untracked repository state.
 
 ## Considered Alternatives
 
-### Continue publishing `.256`
+### Continue publishing only dist/doxygen-bash.awk
 
-The shorter suffix works technically, but it does not identify the checksum
-algorithm clearly and can be associated with unrelated file types. This was
-rejected in favor of the explicit `.sha256` suffix.
+One artifact minimizes release assets, but it makes source documentation size and
+consumer size the same concern.  This was rejected because separate development,
+ordinary, and minified representations provide clearer purposes while the test
+suite can prove one runtime contract across all three.
 
-### Publish both `.256` and `.sha256`
+### Remove provenance comments from ordinary and minified output
 
-Publishing both names would ease transition for consumers, but it would create
-permanent duplicate release assets and leave two producer conventions in active
-use. This was rejected in favor of a single producer convention plus read-side
-compatibility in downstream consumers.
+This would reduce the files slightly further, but it would make downloaded bytes
+less inspectable and would weaken the established source-to-release boundary.
+Build-owned provenance is therefore preserved even though source-body comments are
+removed.
 
-### Release the maintained source file directly
+### Minify the development artifact directly
 
-The workflow could attach the root-level `doxygen-bash.awk` and checksum it
-without a build step. This was rejected because it would omit the provenance
-metadata pattern already used by related projects and would leave no explicit
-build boundary between maintained source and consumer artifact.
+The minifier could consume the fully documented development body.  This was
+rejected because the ordinary artifact is the intended intermediate consumer
+representation.  Making minification derive from ordinary output gives the build
+a straightforward development -> ordinary -> minified pipeline.
 
-### Add bare awk assignments matching the Bash artifact header
+### Use the current repository copy of AWK Minifier or a moving latest release
 
-The generated file could contain unguarded lines such as
-`DOXYGEN_BASH_VERSION=value`. This was rejected because top-level awk expressions
-participate in record processing and can trigger the default action. Provenance
-metadata must not change filter behavior.
+This would avoid one pinned dependency declaration, but the output of an
+executable transformer would then depend on unreviewed moving bytes.  A reviewed
+immutable release URL and digest are required instead.
 
-### Add a dedicated awk BEGIN block containing metadata variables
+### Synchronize dependencies automatically from make build
 
-A generated `BEGIN` block could initialize `DOXYGEN_BASH_*` variables safely.
-This would avoid the default-action problem, but it would still add runtime state
-that the filter does not consume. Comments express provenance without expanding
-the program's namespace or execution model.
+This would hide network and repair behavior inside an apparently deterministic
+build target.  It was rejected in favor of explicit `make deps` acquisition and
+no-network verification during `make build`.
 
-### Assemble release files entirely in GitHub Actions
+### Add bare AWK assignments for build metadata
 
-The semantic-versioning workflow could create the header and checksum directly.
-This was rejected because local development and release automation would then
-have different build interfaces. A Makefile provides one reproducible entry
-point for both contexts.
+Top-level AWK expressions can participate in record processing and trigger the
+default action.  Provenance metadata remains comments so it cannot alter filter
+behavior.
 
 ## Consequences
 
-Consumers receive a clearly identified `doxygen-bash.awk` release artifact whose
-header records the version, source commit, and commit date associated with its
-build. The corresponding `.sha256` file can be verified with standard SHA-256
-tooling.
+Consumers can choose a fully documented development artifact, the canonical
+ordinary artifact, or a minified artifact while retaining one behavioral
+contract.  Every executable artifact is independently verifiable with its
+adjacent checksum.
 
-Historical releases that already contain `.256` assets remain unchanged.
-Downstream tools can preserve compatibility with those releases by trying the
-preferred `.sha256` asset first and falling back to `.256` only when the new name
-is not present.
+The release contains six assets rather than two.  Build preparation gains one
+pinned executable dependency and therefore requires explicit `make deps` on a
+fresh checkout before the complete distribution can be built.
 
-The root-level source remains concise and hand-maintained. Generated provenance
-is present only in `dist/`, which is already ignored by the repository.
+Once dependencies are prepared, build and verification remain offline with
+respect to repository dependency acquisition.  The generated files remain
+self-identifying, and the exact minifier version is observable in both the
+committed manifest and minified artifact header.
 
-The project gains a Makefile and a small amount of build-specific test plumbing.
-CI performs the regression suite twice, once against maintained source and once
-against generated output. This increases test work slightly while proving that
-the build transformation preserves observable filter behavior.
-
-The generated artifact differs byte-for-byte from the maintained source by
-design. Any dependency process that pins release checksums must therefore use
-the checksum attached to the corresponding release rather than hashing the
-root-level repository file.
-
-## Open Questions and Follow-Ups
-
-If consumers later need programmatic access to build metadata at awk runtime, a
-separate decision should define that public interface rather than promoting
-provenance comments into variables incidentally.
-
-Artifact attestations may be considered separately. This decision establishes
-the generated artifact and checksum contract without expanding release
-permissions or supply-chain features beyond the requested scope.
+Downstream projects that already consume `doxygen-bash.awk` need no filename
+migration.  They may adopt `.dev.awk` or `.min.awk` deliberately when those
+representations better fit their use case.
 
 ## Related Decisions
 
-- Related to: ADR-000, which requires evidence-oriented reasoning and explicit
-  capability boundaries.
-- Related to: ADR-001, which preserves consistency in generated Doxygen-facing
-  output.
-- Related to: ADR-002, which defines another source-to-generated-representation
-  boundary within the filter.
+- ADR-000 requires evidence-oriented reasoning and explicit capability
+  boundaries.
+- ADR-001 preserves consistency in generated Doxygen-facing output.
+- ADR-002 defines the synthesized function-signature boundary within the filter.
+- ADR-004 defines the regression strategy used to prove equivalent behavior
+  across maintained and generated representations.
+- ADR-005 keeps documentation-only dependency state separate from ordinary build
+  dependencies.
+- ADR-006 intentionally continues to canary the canonical released
+  `doxygen-bash.awk` artifact.
