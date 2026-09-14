@@ -8,7 +8,7 @@ The filter is intentionally conservative about what it documents: a function or
 variable is only emitted when it is decorated with a Doxygen comment block.
 Undocumented helper functions and implementation details are ignored.
 
-The implementation lives in a single portable awk file:
+The maintained implementation lives in a single portable AWK file:
 
 ```text
 ./doxygen-bash.awk
@@ -47,7 +47,7 @@ It only interprets a small structural subset: `@file`, `@fn`, `@var`, and
 
 ## Manual usage
 
-Run the filter directly with awk:
+Run the maintained filter directly with AWK:
 
 ```sh
 awk -f ./doxygen-bash.awk ./script.bash > ./script.dox.cpp
@@ -111,15 +111,64 @@ awk -f ./doxygen-bash.awk -- --strict "$@"
 
 Then reference that wrapper from `FILTER_PATTERNS`.
 
+## Building release artifacts
+
+The maintained root source is transformed into three executable distribution
+representations.  AWK Minifier is a pinned build dependency managed separately
+from documentation-only dependencies.
+
+Prepare and verify ordinary build dependencies with:
+
+```sh
+make deps
+make deps-check
+```
+
+After dependency preparation, `make build` is network-free and produces six
+files:
+
+```text
+dist/doxygen-bash.dev.awk
+dist/doxygen-bash.dev.awk.sha256
+dist/doxygen-bash.awk
+dist/doxygen-bash.awk.sha256
+dist/doxygen-bash.min.awk
+dist/doxygen-bash.min.awk.sha256
+```
+
+The representations have distinct distribution purposes while retaining one
+runtime contract:
+
+- `doxygen-bash.dev.awk` contains the complete maintained source body, including
+  documentation and implementation comments;
+- `doxygen-bash.awk` is the canonical ordinary consumer artifact and removes
+  full-line comments from the source body while retaining build provenance; and
+- `doxygen-bash.min.awk` transforms the ordinary body with the pinned AWK
+  Minifier release while retaining a small provenance header.
+
+Each executable artifact has an adjacent SHA-256 file in standard `sha256sum`
+format.  The minifier pin is declared in `dependencies.txt` and materialized as
+`vendor/awk-minifier.awk` by bashdeps.
+
+Run GNU awk lint against maintained AWK source independently of the behavior
+suite:
+
+```sh
+make check
+```
+
+`make check` requires `gawk` and treats GNU awk lint warnings as fatal.  Linting
+is deliberately not part of the `test` target.
+
 ## Generated reference documentation
 
 This repository publishes its own Doxygen reference documentation and deliberately
 dogfoods both `awk-doxygen` and `bash-doxygen` while doing so.
 
-Stable documentation dependencies are declared separately from the ordinary build
-in `dependencies-docs.txt`.  A pinned `bashdeps` release materializes the pinned
-filter artifacts and ADR navigation tooling beneath `vendor/`.  The current
-stable pins are `awk-doxygen` v0.0.4, `bash-doxygen` v0.0.14, and `adrctl`
+Stable documentation dependencies are declared separately from ordinary build
+dependencies in `dependencies-docs.txt`.  A pinned `bashdeps` release materializes
+the pinned filter artifacts and ADR navigation tooling beneath `vendor/`.  The
+current stable pins are `awk-doxygen` v0.0.4, `bash-doxygen` v0.0.14, and `adrctl`
 v0.0.13.
 
 Prepare the documentation dependencies with:
@@ -163,10 +212,10 @@ site structure.
 ADR-006 adds two complementary canaries without moving those stable pins.  Pull
 requests and `main` generate the same reference corpus with current repository
 `doxygen-bash.awk` as the Bash filter, providing pre-release integration feedback.
-When a release is published, a second canary downloads the exact released
-`doxygen-bash.awk` asset and checksum, verifies the bytes, and generates the same
-reference documentation.  This catches both source-level regressions before
-release and packaging failures after release while leaving stable Pages
+When a release is published, a second canary downloads the exact canonical
+released `doxygen-bash.awk` asset and checksum, verifies the bytes, and generates
+the same reference documentation.  This catches both source-level regressions
+before release and packaging failures after release while leaving stable Pages
 publication reproducible.
 
 Routine documentation generation includes linked ADR navigation only; it does
@@ -220,23 +269,38 @@ With `--strict`, any warning causes the filter to exit non-zero.
 
 ## Testing
 
-Run the complete test suite from the repository root:
+After ordinary build dependencies have been prepared, run the complete suite from
+the repository root:
 
 ```sh
 make test
 ```
 
-The suite uses small, behavior-focused fixtures.  Successful translations in
-`tests/fixtures/` are compared with golden pseudo-C++ output in `tests/expected/`.
-Diagnostic cases in `tests/diagnostics/` verify both normal warning behavior and
-strict-mode failure.  The suite also covers compact/default blank-line behavior
-and runs against both the maintained source and the generated distribution
-artifact.
+The harness emits one TAP version 13 stream and runs the same behavior-focused
+fixtures against the maintained source plus all three generated AWK artifacts.
+Successful translations in `tests/fixtures/` are compared with golden pseudo-C++
+output in `tests/expected/`.  Diagnostic cases in `tests/diagnostics/` verify both
+normal warning behavior and strict-mode failure.  The suite also covers
+compact/default blank-line behavior, generated-artifact provenance, and adjacent
+checksum verification.
 
-To exercise the maintained source directly without building `dist/`, run:
+To exercise only the maintained source without preparing build dependencies or
+building `dist/`, run:
 
 ```sh
-./tests/run-tests.sh
+make test-source
+```
+
+To build and exercise only the three distribution artifacts, run:
+
+```sh
+make test-dist
+```
+
+GNU awk lint remains a separate validation boundary:
+
+```sh
+make check
 ```
 
 ## Design notes
@@ -249,9 +313,11 @@ about documented intent when `@fn` or `@var` is provided.
 ## Governance
 
 Architecture decisions are recorded in `doc/adr/`, with concise summaries in
-`doc/decisions.md`.  ADR-005 governs stable reference publication, ADR-006
-governs current-source and released-artifact documentation canaries, and ADR-007
-governs the ephemeral ADR landing page shared by all documentation paths.
+`doc/decisions.md`.  ADR-003 governs the three executable release representations
+and their checksums, ADR-004 governs behavior-focused TAP regression testing,
+ADR-005 governs stable reference publication, ADR-006 governs current-source and
+released-artifact documentation canaries, and ADR-007 governs the ephemeral ADR
+landing page shared by all documentation paths.
 
 ## License
 
