@@ -49,7 +49,7 @@ BEGIN {
     reset_doc()
 }
 
-function reset_doc(    i) {
+function reset_doc() {
     doc_count = 0
     doc_kind = ""
     doc_name = ""
@@ -236,7 +236,7 @@ function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
     print " */"
 }
 
-function normalize_func_decl(line,    s, name) {
+function normalize_func_decl(line,    s) {
     s = line
     sub(/#.*/, "", s)
     s = trim(s)
@@ -270,7 +270,7 @@ function emit_function(name,    params) {
     print "int " name "(" params ");"
 }
 
-function classify_variable(raw_line, info,    line, prefix, opts, name, value, eqpos, token, rest) {
+function classify_variable(raw_line, info,    line, opts, name, value, eqpos, token) {
     delete info
     line = raw_line
     sub(/#.*/, "", line)
@@ -360,12 +360,6 @@ function classify_variable(raw_line, info,    line, prefix, opts, name, value, e
 
     info["name"] = name
     return 1
-}
-
-function is_probable_variable_decl(line,    ok) {
-    ok = classify_variable(line, tmp_info)
-    delete tmp_info
-    return ok
 }
 
 function variable_meta(info,    meta) {
