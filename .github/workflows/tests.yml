@@ -34,28 +34,4 @@ jobs:
           make deps-check
 
       - name: Run test suite
-        run: |
-          if make test; then
-            exit 0
-          fi
-
-          if [ -f dist/doxygen-bash.awk ] && [ -f vendor/awk-minifier.awk ]; then
-            body="${RUNNER_TEMP}/doxygen-bash.body.awk"
-            sed '1,/^# End generated header\.$/d' dist/doxygen-bash.awk >"${body}"
-            total="$(wc -l <"${body}" | tr -d '[:space:]')"
-            n=1
-            while [ "${n}" -le "${total}" ]; do
-              if ! head -n "${n}" "${body}" |
-                awk -f vendor/awk-minifier.awk >/dev/null 2>"${RUNNER_TEMP}/minifier.err"; then
-                start=$((n - 2))
-                [ "${start}" -gt 0 ] || start=1
-                end=$((n + 2))
-                printf '%s\n' "First rejected complete-line prefix ends at body line ${n}:"
-                nl -ba "${body}" | sed -n "${start},${end}p"
-                cat "${RUNNER_TEMP}/minifier.err"
-                break
-              fi
-              n=$((n + 1))
-            done
-          fi
-          exit 1
+        run: make test
