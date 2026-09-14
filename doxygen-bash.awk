@@ -36,13 +36,13 @@ BEGIN {
     strict = (strict ? strict : 0)
     keep_blanks = (compact ? 0 : 1)
 
-    for (i = 1; i < ARGC; i++) {
-        if (ARGV[i] == "--strict") {
+    for (arg_index = 1; arg_index < ARGC; arg_index++) {
+        if (ARGV[arg_index] == "--strict") {
             strict = 1
-            ARGV[i] = ""
-        } else if (ARGV[i] == "--compact") {
+            ARGV[arg_index] = ""
+        } else if (ARGV[arg_index] == "--compact") {
             keep_blanks = 0
-            ARGV[i] = ""
+            ARGV[arg_index] = ""
         }
     }
 
@@ -440,15 +440,15 @@ function flush_unmatched_docs(reason) {
 }
 
 {
-    line = $0
+    source_line = $0
 
-    if (is_doc_line(line)) {
-        add_doc_line(line)
+    if (is_doc_line(source_line)) {
+        add_doc_line(source_line)
         next
     }
 
     if (doc_count > 0) {
-        if (is_blank(line)) {
+        if (is_blank(source_line)) {
             if (flush_file_docs_if_needed()) {
                 emit_blank()
             }
@@ -459,8 +459,8 @@ function flush_unmatched_docs(reason) {
             emit_blank()
         }
 
-        if (doc_count > 0 && is_probable_function_decl(line)) {
-            fn_name = normalize_func_decl(line)
+        if (doc_count > 0 && is_probable_function_decl(source_line)) {
+            fn_name = normalize_func_decl(source_line)
             if (doc_kind == "var") {
                 fail_or_warn("@var block precedes function declaration " fn_name)
             }
@@ -472,7 +472,7 @@ function flush_unmatched_docs(reason) {
             next
         }
 
-        if (doc_count > 0 && classify_variable(line, var_info)) {
+        if (doc_count > 0 && classify_variable(source_line, var_info)) {
             if (doc_kind == "fn") {
                 fail_or_warn("@fn block precedes variable declaration " var_info["name"])
             }
