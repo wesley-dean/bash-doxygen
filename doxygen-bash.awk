@@ -143,7 +143,7 @@ function sanitize_identifier(name, fallback,    s) {
     gsub(/^[.][.][.]/, "", s)
     gsub(/^--/, "", s)
     gsub(/\[\]$/, "", s)
-    gsub(/=$/, "", s)
+    gsub(/[=]$/, "", s)
     gsub(/-/, "_", s)
     gsub(/[^A-Za-z0-9_:]/, "_", s)
 
