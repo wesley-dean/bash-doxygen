@@ -18,8 +18,11 @@ See
 Source-side Bash parameter names are resolved once into canonical Doxygen-safe
 identifiers, including deterministic collision handling, and the same resolved
 names are used in both emitted `@param` directives and synthesized declarations.
-This preserves natural source documentation while preventing the documentation
-and generated signature from disagreeing.  See
+Standard `[in]`, `[out]`, and `[in,out]` qualifiers are preserved as Doxygen
+metadata while only the following parameter token participates in sanitization
+and uniqueness resolution.  This preserves natural Bash documentation and
+parameter direction semantics without allowing the documentation and generated
+signature to disagree.  See
 [`ADR-001`](adr/ADR-001-keep-documented-and-synthesized-parameter-names-aligned.md).
 
 ## ADR-002: Use synthesized declarations as the emitted function signature
