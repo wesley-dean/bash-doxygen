@@ -126,3 +126,15 @@ Doxygen-facing grouped variable.  Membership is local to each documentation
 block, is never inferred from names or files, and nested groups plus class
 abstractions remain separate future work.  See
 [`ADR-010`](adr/ADR-010-map-explicit-bash-modules-to-doxygen-groups.md).
+
+## ADR-011: Adopt shared coding standards
+
+**Status:** Accepted
+
+The repository adopts the complete verified `coding_standards@v1.0.9` snapshot
+beneath `doc/standards/` with provenance in `.codingstandardrc`.  Applicable
+imported standards govern where relevant, subject to accepted local ADRs and
+explicit policy; presence does not imply applicability, and imported examples are
+illustrative.  Duplicate live documentation-standard files are removed where
+present so shared documentation rules have one authoritative managed path.  See
+[ADR-011](adr/ADR-011-adopt-shared-coding-standards.md).
