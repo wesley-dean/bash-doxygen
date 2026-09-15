@@ -112,3 +112,17 @@ agree, and conflicts are diagnostics rather than silently resolved by precedence
 Qualified documentation identities are emitted as nested C++ namespace blocks
 and must pass the focused Doxygen XML semantic test.  See
 [`ADR-009`](adr/ADR-009-separate-bash-symbols-from-documentation-namespaces.md).
+
+## ADR-010: Map explicit Bash modules to Doxygen groups
+
+`@module` defines the canonical Bash-facing module vocabulary, while `@package`
+is accepted as an exact alias and is translated to the same language-neutral
+Doxygen group model rather than package semantics.  Module-only blocks create
+flat Doxygen groups; explicit `@fn` and `@var` blocks may opt individual symbols
+into a group with `@ingroup`, including namespaced functions governed by ADR-009.
+For successfully grouped variables, source `@var` remains required for identity
+validation but is consumed so the synthesized declaration is the single
+Doxygen-facing grouped variable.  Membership is local to each documentation
+block, is never inferred from names or files, and nested groups plus class
+abstractions remain separate future work.  See
+[`ADR-010`](adr/ADR-010-map-explicit-bash-modules-to-doxygen-groups.md).

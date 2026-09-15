@@ -61,6 +61,11 @@ function reset_doc() {
     doc_name = ""
     doc_namespace = ""
     doc_namespace_conflict = ""
+    doc_module = ""
+    doc_module_conflict = ""
+    doc_module_invalid = ""
+    doc_module_malformed = ""
+    doc_module_seen = 0
     param_count = 0
     delete doc_lines
     delete param_names
@@ -115,7 +120,42 @@ function is_param_directive(meta) {
     return (meta ~ /^@param(\[(in|out|in,out)\])?[ \t]+/)
 }
 
-function add_doc_line(line,    content, meta, namespace_name) {
+function record_module_directive(meta, directive,    s, module_name) {
+    doc_module_seen = 1
+    s = meta
+    sub("^" directive, "", s)
+
+    if (s !~ /^[ \t]+/) {
+        if (doc_module_malformed == "") {
+            doc_module_malformed = directive
+        }
+        return
+    }
+
+    s = trim(s)
+    if (s == "" || s ~ /[ \t]/) {
+        if (doc_module_malformed == "") {
+            doc_module_malformed = directive
+        }
+        return
+    }
+
+    module_name = s
+    if (!is_valid_identifier(module_name)) {
+        if (doc_module_invalid == "") {
+            doc_module_invalid = module_name
+        }
+        return
+    }
+
+    if (doc_module == "") {
+        doc_module = module_name
+    } else if (doc_module != module_name && doc_module_conflict == "") {
+        doc_module_conflict = module_name
+    }
+}
+
+function add_doc_line(line,    content, meta, namespace_name, module_directive) {
     content = strip_doc_marker(line)
     doc_lines[++doc_count] = content
 
@@ -132,6 +172,12 @@ function add_doc_line(line,    content, meta, namespace_name) {
         } else {
             doc_namespace = namespace_name
         }
+    } else if (meta ~ /^@module([ \t]|$)/) {
+        module_directive = "@module"
+        record_module_directive(meta, module_directive)
+    } else if (meta ~ /^@package([ \t]|$)/) {
+        module_directive = "@package"
+        record_module_directive(meta, module_directive)
     } else if (meta ~ /^@fn[ \t]+/) {
         doc_kind = "fn"
         doc_name = parse_doc_symbol(meta, "@fn")
@@ -240,12 +286,21 @@ function build_param_list(    i, joined) {
     return joined
 }
 
-function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
+function emit_doc_block(extra_line, suppress_fn, suppress_module, structural_line, trailing_line, suppress_var,    i, line, meta) {
     print "/**"
+    if (structural_line != "") {
+        print " * " structural_line
+    }
     for (i = 1; i <= doc_count; i++) {
         line = doc_lines[i]
         meta = trim(line)
         if (suppress_fn && (meta ~ /^@fn([ \t]|$)/ || meta ~ /^@namespace([ \t]|$)/)) {
+            continue
+        }
+        if (suppress_module && (meta ~ /^@module([ \t]|$)/ || meta ~ /^@package([ \t]|$)/)) {
+            continue
+        }
+        if (suppress_var && meta ~ /^@var([ \t]|$)/) {
             continue
         }
         if (line == "") {
@@ -253,6 +308,9 @@ function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
         } else {
             print " * " line
         }
+    }
+    if (trailing_line != "") {
+        print " * " trailing_line
     }
     if (extra_line != "") {
         print " * " extra_line
@@ -331,6 +389,32 @@ function split_qualified_identity(identity, info,    parts, count, i, namespace_
     info["namespace"] = namespace_name
     info["member"] = parts[count]
     return 1
+}
+
+function resolve_module_name(    invalid) {
+    invalid = 0
+
+    if (!doc_module_seen) {
+        return ""
+    }
+
+    if (doc_module_malformed != "") {
+        fail_or_warn("malformed " doc_module_malformed " directive")
+        invalid = 1
+    }
+    if (doc_module_invalid != "") {
+        fail_or_warn("invalid module identifier " doc_module_invalid)
+        invalid = 1
+    }
+    if (doc_module_conflict != "") {
+        fail_or_warn("module metadata conflicts: " doc_module " and " doc_module_conflict)
+        invalid = 1
+    }
+
+    if (invalid) {
+        return ""
+    }
+    return doc_module
 }
 
 function resolve_function_identity(physical_name, info,    literal_info, documented_info, resolved_info, literal_qualified, documented_qualified, doc_has_qualification, valid_namespace, combined, identity, function_doc_name) {
@@ -415,10 +499,15 @@ function resolve_function_identity(physical_name, info,    literal_info, documen
     }
 }
 
-function emit_function(namespace_name, member_name,    params, namespace_parts, namespace_count, i) {
+function emit_function(namespace_name, member_name, module_name, module_requested,    params, namespace_parts, namespace_count, i, group_line) {
     prepare_param_names()
     rewrite_param_doc_lines()
     params = build_param_list()
+
+    group_line = ""
+    if (module_name != "") {
+        group_line = "@ingroup " module_name
+    }
 
     namespace_count = 0
     if (namespace_name != "") {
@@ -428,7 +517,7 @@ function emit_function(namespace_name, member_name,    params, namespace_parts, 
         }
     }
 
-    emit_doc_block("", 1)
+    emit_doc_block("", 1, module_requested, group_line)
     print "int " member_name "(" params ");"
 
     for (i = namespace_count; i >= 1; i--) {
@@ -677,14 +766,31 @@ function variable_pseudo_type(info,    type) {
     return type
 }
 
-function emit_variable(info,    type) {
-    emit_doc_block(variable_meta(info))
+function emit_variable(info, module_name, module_requested,    type, group_line) {
+    group_line = ""
+    if (module_name != "") {
+        group_line = "@ingroup " module_name
+    }
+    emit_doc_block(variable_meta(info), 0, module_requested, group_line, "", (group_line != ""))
     type = variable_pseudo_type(info)
     print type " " info["name"] ";"
 }
 
 function docs_are_file_only() {
     return (doc_count > 0 && doc_kind == "file")
+}
+
+function docs_are_module_definition() {
+    return (doc_count > 0 && doc_module_seen && doc_kind == "" && doc_namespace == "" && param_count == 0)
+}
+
+function emit_module_definition(    module_name) {
+    module_name = resolve_module_name()
+    if (module_name != "") {
+        emit_doc_block("", 0, 1, "@defgroup " module_name " " module_name)
+    } else {
+        emit_doc_block("@warning Invalid module metadata prevented group definition.", 0, 1, "")
+    }
 }
 
 function flush_file_docs_if_needed() {
@@ -696,12 +802,24 @@ function flush_file_docs_if_needed() {
     return 0
 }
 
+function flush_module_docs_if_needed() {
+    if (docs_are_module_definition()) {
+        emit_module_definition()
+        reset_doc()
+        return 1
+    }
+    return 0
+}
+
 function flush_unmatched_docs(reason) {
     if (doc_count > 0) {
+        if (doc_module_seen) {
+            resolve_module_name()
+        }
         if (reason != "") {
             fail_or_warn(reason)
         }
-        emit_doc_block("@warning No recognized Bash declaration was associated with this documentation block.")
+        emit_doc_block("@warning No recognized Bash declaration was associated with this documentation block.", 0, doc_module_seen, "")
         reset_doc()
     }
 }
@@ -718,6 +836,10 @@ function flush_unmatched_docs(reason) {
         if (is_blank(source_line)) {
             if (flush_file_docs_if_needed()) {
                 emit_blank()
+                next
+            }
+            if (flush_module_docs_if_needed()) {
+                emit_blank()
             }
             next
         }
@@ -731,13 +853,47 @@ function flush_unmatched_docs(reason) {
             next
         }
 
+        if (doc_count > 0 && docs_are_module_definition()) {
+            if (is_probable_function_decl(source_line)) {
+                fail_or_warn("module membership for function requires @fn")
+                emit_doc_block("@warning Module metadata was not associated because explicit @fn metadata is required.", 0, 1, "")
+                reset_doc()
+                next
+            }
+
+            module_variable_status = classify_variable(source_line, module_var_info)
+            if (module_variable_status != 0) {
+                fail_or_warn("module membership for variable requires @var")
+                emit_doc_block("@warning Module metadata was not associated because explicit @var metadata is required.", 0, 1, "")
+                delete module_var_info
+                reset_doc()
+                next
+            }
+            delete module_var_info
+
+            emit_module_definition()
+            reset_doc()
+            emit_blank()
+            next
+        }
+
         if (doc_count > 0 && is_probable_function_decl(source_line)) {
             fn_name = normalize_func_decl(source_line)
             if (doc_kind == "var") {
                 fail_or_warn("@var block precedes function declaration " fn_name)
             }
+
+            resolved_module_name = ""
+            if (doc_module_seen) {
+                resolved_module_name = resolve_module_name()
+                if (doc_kind != "fn") {
+                    fail_or_warn("module membership for function requires @fn")
+                    resolved_module_name = ""
+                }
+            }
+
             resolve_function_identity(fn_name, fn_identity)
-            emit_function(fn_identity["namespace"], fn_identity["member"])
+            emit_function(fn_identity["namespace"], fn_identity["member"], resolved_module_name, doc_module_seen)
             delete fn_identity
             reset_doc()
             next
@@ -755,6 +911,14 @@ function flush_unmatched_docs(reason) {
             }
 
             if (variable_status > 0) {
+                resolved_module_name = ""
+                if (doc_module_seen) {
+                    resolved_module_name = resolve_module_name()
+                    if (doc_kind != "var") {
+                        fail_or_warn("module membership for variable requires @var")
+                        resolved_module_name = ""
+                    }
+                }
                 if (doc_namespace != "") {
                     fail_or_warn("@namespace is only supported for function documentation")
                 }
@@ -764,7 +928,7 @@ function flush_unmatched_docs(reason) {
                 if (doc_name != "" && doc_name != var_info["name"]) {
                     fail_or_warn("@var documents " doc_name " but declaration is " var_info["name"])
                 }
-                emit_variable(var_info)
+                emit_variable(var_info, resolved_module_name, doc_module_seen)
                 delete var_info
                 reset_doc()
                 next
@@ -781,7 +945,9 @@ function flush_unmatched_docs(reason) {
 
 END {
     if (doc_count > 0) {
-        flush_unmatched_docs("documentation block reached end of file without a declaration")
+        if (!flush_module_docs_if_needed()) {
+            flush_unmatched_docs("documentation block reached end of file without a declaration")
+        }
     }
 
     if (strict && (warning_count > 0 || error_count > 0)) {
