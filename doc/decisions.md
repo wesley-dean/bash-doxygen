@@ -18,8 +18,11 @@ See
 Source-side Bash parameter names are resolved once into canonical Doxygen-safe
 identifiers, including deterministic collision handling, and the same resolved
 names are used in both emitted `@param` directives and synthesized declarations.
-This preserves natural source documentation while preventing the documentation
-and generated signature from disagreeing.  See
+Standard `[in]`, `[out]`, and `[in,out]` qualifiers are preserved as Doxygen
+metadata while only the following parameter token participates in sanitization
+and uniqueness resolution.  This preserves natural Bash documentation and
+parameter direction semantics without allowing the documentation and generated
+signature to disagree.  See
 [`ADR-001`](adr/ADR-001-keep-documented-and-synthesized-parameter-names-aligned.md).
 
 ## ADR-002: Use synthesized declarations as the emitted function signature
@@ -87,3 +90,39 @@ existing documentation-only dependency manifest, while `make adr-index`,
 boundary.  Doxygen uses the generated composite as its main page, and routine
 documentation generation remains free of automatic ADR relationship graphs.  See
 [`ADR-007`](adr/ADR-007-publish-ephemeral-adr-navigation-across-documentation-paths.md).
+
+## ADR-008: Bound declaration association with explicit lexical rules
+
+Explicit `local`, `readonly`, `export`, `declare`, and `typeset` commands may
+document a single uninitialized variable while preserving their existing
+metadata.  Only explicitly recognized ShellCheck `disable=` comments are
+transparent between a Doxygen block and its declaration; arbitrary comments
+remain association barriers.  Documented multi-name explicit declarations are
+rejected with a diagnostic and no partial first-symbol output, using a small
+lexical word counter rather than a general Bash parser.  See
+[`ADR-008`](adr/ADR-008-bound-declaration-association-with-explicit-lexical-rules.md).
+
+## ADR-009: Separate Bash symbols from documentation namespaces
+
+Literal qualified Bash function names remain authoritative source identities,
+while qualified `@fn` directives or explicit `@namespace` plus `@fn` may define
+a separate documentation identity for a differently named implementation.
+Namespace evidence is never inferred from prefixes, redundant evidence must
+agree, and conflicts are diagnostics rather than silently resolved by precedence.
+Qualified documentation identities are emitted as nested C++ namespace blocks
+and must pass the focused Doxygen XML semantic test.  See
+[`ADR-009`](adr/ADR-009-separate-bash-symbols-from-documentation-namespaces.md).
+
+## ADR-010: Map explicit Bash modules to Doxygen groups
+
+`@module` defines the canonical Bash-facing module vocabulary, while `@package`
+is accepted as an exact alias and is translated to the same language-neutral
+Doxygen group model rather than package semantics.  Module-only blocks create
+flat Doxygen groups; explicit `@fn` and `@var` blocks may opt individual symbols
+into a group with `@ingroup`, including namespaced functions governed by ADR-009.
+For successfully grouped variables, source `@var` remains required for identity
+validation but is consumed so the synthesized declaration is the single
+Doxygen-facing grouped variable.  Membership is local to each documentation
+block, is never inferred from names or files, and nested groups plus class
+abstractions remain separate future work.  See
+[`ADR-010`](adr/ADR-010-map-explicit-bash-modules-to-doxygen-groups.md).

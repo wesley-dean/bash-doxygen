@@ -42,8 +42,8 @@ readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/example"
 
 The filter preserves normal Doxygen commands such as `@brief`, `@details`,
 `@param`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, and custom aliases.
-It only interprets a small structural subset: `@file`, `@fn`, `@var`, and
-`@param` names.
+It only interprets a small structural subset: `@file`, `@fn`, `@namespace`,
+`@module`, `@package`, `@var`, and `@param` names.
 
 ## Manual usage
 
@@ -231,6 +231,7 @@ name() {
 name () {
 function name {
 function name() {
+namespace::name() {
 ```
 
 It recognizes documented variables using common assignment and declaration
@@ -255,6 +256,100 @@ Variable output is enriched with inferred Bash characteristics, including
 read-only/read-write, exported, local, indexed array, associative array,
 integer, nameref, lowercase transform, and uppercase transform.
 
+## Function namespaces
+
+Namespace support is explicit and function-only.  A literal Bash symbol that
+already contains `::` is preserved as source evidence and is emitted beneath the
+corresponding Doxygen namespace:
+
+```bash
+## @fn config::load()
+config::load() {
+  :
+}
+```
+
+A differently named Bash implementation can request the same documentation
+identity with a qualified `@fn`:
+
+```bash
+## @fn config::load()
+config_load() {
+  :
+}
+```
+
+or with `@namespace` plus an unqualified `@fn`:
+
+```bash
+## @namespace config
+## @fn load()
+config_load() {
+  :
+}
+```
+
+Nested namespace paths such as `network::http` are supported.  The filter does
+not infer namespaces from implementation prefixes such as `config_` or
+`network_http_`.  Redundant literal, `@fn`, and `@namespace` evidence is accepted
+when it agrees; contradictory explicit evidence produces a diagnostic.  The
+source `@namespace` and `@fn` directives are consumed as structural metadata and
+are not emitted into the generated function documentation block.
+
+## Documentation modules and groups
+
+Logical Bash API modules are mapped to Doxygen groups.  `@module` is the
+canonical source spelling.  `@package` is accepted as an exact alias and is
+translated to the same group model; it does not imply Java package semantics or
+another language-specific package construct.
+
+A module-only documentation block defines the Doxygen group:
+
+```bash
+## @module networking
+## @brief Network-related functionality.
+```
+
+The filter translates that block to a Doxygen `@defgroup` definition.  Module
+identifiers are intentionally flat in the initial contract and must match
+`[A-Za-z_][A-Za-z0-9_]*`; nested module/group paths are not currently supported.
+
+A function opts into a module by combining the module marker with an explicit
+`@fn`:
+
+```bash
+## @module networking
+## @fn download()
+## @brief Downloads a resource.
+download() {
+  :
+}
+```
+
+A variable uses the same pattern with an explicit `@var`:
+
+```bash
+## @module networking
+## @var NETWORK_TIMEOUT
+## @brief Default network timeout in seconds.
+readonly NETWORK_TIMEOUT=30
+```
+
+Member blocks are translated to Doxygen `@ingroup` membership.  The source
+`@module` or `@package` directive is consumed as structural metadata and is not
+passed through to Doxygen.
+
+Module membership is local to each documentation block.  A module definition
+does not establish persistent scope for later symbols, and the filter does not
+infer modules from prefixes, filenames, directories, sourcing relationships, or
+namespace names.  A function or variable placed directly after a module marker
+without the required `@fn` or `@var` is diagnosed instead of being assigned by
+proximity.
+
+Modules and function namespaces are orthogonal.  A function may remain a member
+of a namespace established under the namespace rules above while independently
+belonging to a Doxygen group.
+
 ## Diagnostics
 
 Diagnostics are written to standard error.  The filter warns when:
@@ -262,8 +357,17 @@ Diagnostics are written to standard error.  The filter warns when:
 - a documentation block is not followed by a recognized declaration;
 - an `@fn` block precedes a variable declaration;
 - an `@var` block precedes a function declaration;
-- an `@fn` name differs from the function declaration;
-- an `@var` name differs from the variable declaration.
+- an ordinary unqualified `@fn` name differs from the function declaration;
+- an `@var` name differs from the variable declaration;
+- an `@namespace` path is invalid, incomplete, or used for variable
+  documentation;
+- explicit namespace evidence conflicts with literal or qualified function
+  identity;
+- a module identifier is malformed or outside the supported flat identifier
+  grammar;
+- `@module` and/or `@package` metadata in one block names conflicting modules;
+  or
+- module membership is attempted without explicit `@fn` or `@var` metadata.
 
 With `--strict`, any warning causes the filter to exit non-zero.
 
@@ -308,7 +412,11 @@ make check
 This project is not a full Bash parser.  It is a documentation compiler for the
 small subset of Bash declarations that can reasonably follow a Doxygen block.
 The parser is permissive about whitespace and declaration style, but strict
-about documented intent when `@fn` or `@var` is provided.
+about documented intent when `@fn`, `@namespace`, `@module`, `@package`, or
+`@var` is provided.  Documentation namespaces are derived only from literal
+`::` qualification or explicit structural metadata; underscore or prefix
+conventions are never inferred.  Documentation modules likewise require an
+explicit block-local marker and do not create persistent source scope.
 
 ## Governance
 
@@ -316,8 +424,11 @@ Architecture decisions are recorded in `doc/adr/`, with concise summaries in
 `doc/decisions.md`.  ADR-003 governs the three executable release representations
 and their checksums, ADR-004 governs behavior-focused TAP regression testing,
 ADR-005 governs stable reference publication, ADR-006 governs current-source and
-released-artifact documentation canaries, and ADR-007 governs the ephemeral ADR
-landing page shared by all documentation paths.
+released-artifact documentation canaries, ADR-007 governs the ephemeral ADR
+landing page shared by all documentation paths, ADR-008 governs bounded
+declaration association, ADR-009 governs documentation namespaces and literal
+qualified function identities, and ADR-010 governs documentation modules and
+their Doxygen group representation.
 
 ## License
 

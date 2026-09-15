@@ -21,13 +21,42 @@ test-doxygen:
 	DOXYGEN_BASH_FILTER="$(abspath $(DOXYGEN_BASH_FILTER))" \
 		doxygen "$(INTEGRATION_CONFIG)"
 	@test -f "$(INTEGRATION_OUT)/xml/index.xml"
-	@grep -R -Fq 'Provides the focused bash-doxygen Doxygen integration fixture.' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq '<name>BASH_DOXYGEN_INTEGRATION_VALUE</name>' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq 'Integration sentinel variable used to verify Doxygen indexing.' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq '<name>normalize_input</name>' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq '<declname>input_value</declname>' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq 'Value to normalize during integration testing.' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq 'A single normalized integration value.' "$(INTEGRATION_OUT)/xml"
+	@check_xml() { \
+		label="$$1"; \
+		needle="$$2"; \
+		if ! grep -R -Fq "$$needle" "$(INTEGRATION_OUT)/xml"; then \
+			printf 'Missing Doxygen XML semantic: %s\n' "$$label" >&2; \
+			grep -R -n -E 'normalize_input|normalized|return|integration::nested|namespaced|integration_group|group' "$(INTEGRATION_OUT)/xml" >&2 || true; \
+			return 1; \
+		fi; \
+	}; \
+	check_xml 'file brief' 'Provides the focused bash-doxygen Doxygen integration fixture.'; \
+	check_xml 'integration variable name' '<name>BASH_DOXYGEN_INTEGRATION_VALUE</name>'; \
+	check_xml 'integration variable brief' 'Integration sentinel variable used to verify Doxygen indexing.'; \
+	check_xml 'normalize_input function name' '<name>normalize_input</name>'; \
+	check_xml 'normalize_input parameter declaration' '<declname>input_value</declname>'; \
+	check_xml 'normalize_input parameter direction' '<parametername direction="in">input_value</parametername>'; \
+	check_xml 'normalize_input parameter documentation' 'Value to normalize during integration testing.'; \
+	check_xml 'normalize_input return documentation' 'A single normalized integration value.'; \
+	check_xml 'nested namespace compound' '<compoundname>integration::nested</compoundname>'; \
+	check_xml 'namespaced qualified function' '<definition>int integration::nested::namespaced</definition>'; \
+	check_xml 'namespaced function brief' 'Provides a documentation-only namespace integration sentinel.'; \
+	check_xml 'module group compound' '<compoundname>integration_group</compoundname>'; \
+	check_xml 'module group brief' 'Groups the focused Doxygen integration sentinels.'; \
+	group_xml=$$(grep -Rl -F '<compoundname>integration_group</compoundname>' "$(INTEGRATION_OUT)/xml" | head -n 1); \
+	[ -n "$$group_xml" ] || { printf '%s\n' 'Missing Doxygen XML semantic: module group XML file' >&2; exit 1; }; \
+	check_group_member() { \
+		label="$$1"; \
+		needle="$$2"; \
+		if ! grep -Fq "$$needle" "$$group_xml"; then \
+			printf 'Missing Doxygen XML semantic: %s\n' "$$label" >&2; \
+			grep -n -E 'BASH_DOXYGEN_INTEGRATION_VALUE|normalize_input|namespaced|integration_group' "$$group_xml" >&2 || true; \
+			return 1; \
+		fi; \
+	}; \
+	check_group_member 'module variable membership' '<name>BASH_DOXYGEN_INTEGRATION_VALUE</name>'; \
+	check_group_member 'module function membership' '<name>normalize_input</name>'; \
+	check_group_member 'module namespaced-function membership' '<name>namespaced</name>'
 
 ## Exercise every generated release candidate through the same Doxygen contract.
 test-doxygen-dist: build
