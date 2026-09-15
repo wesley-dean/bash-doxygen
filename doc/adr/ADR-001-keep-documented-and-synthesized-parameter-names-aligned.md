@@ -1,10 +1,11 @@
 # ADR-001: Keep documented and synthesized parameter names aligned
 
 Date: 2026-08-15
+Last updated: 2026-09-14
 
 ## Status
 
-Proposed
+Accepted
 
 ## Intent and Documentation Posture
 
@@ -34,23 +35,54 @@ the declaration generator disambiguates the second occurrence as `foo_2`.
 Documentation must use that same resolved name rather than repeating the
 sanitization independently.
 
+Doxygen also permits direction metadata on parameter commands:
+
+```text
+@param[in] name Input value.
+@param[out] name Output value.
+@param[in,out] name Value read and modified by the function.
+```
+
+That bracketed direction is metadata associated with the parameter; it is not
+part of the parameter name.  The original recognition rule required whitespace
+immediately after `@param`, so these forms were preserved as ordinary text but
+were not included in the synthesized parameter list.  Treating the qualifier as
+part of the name would be equally incorrect because sanitization and collision
+handling apply only to the source-side parameter token.
+
 ## Decision Drivers
 
 - Preserve natural Bash documentation such as `@param $1` in source files.
+- Preserve standard Doxygen parameter direction metadata when authors use it.
 - Emit a representation that Doxygen can associate reliably with the generated
   declaration.
 - Keep declaration generation and documentation rewriting deterministic.
 - Avoid duplicated sanitization logic that could diverge when names collide.
-- Preserve parameter descriptions and ordering while changing only the emitted
-  parameter identifier.
+- Preserve parameter qualifiers, descriptions, and ordering while changing only
+  the emitted parameter identifier.
 - Keep the filter small and inspectable rather than introducing a general Bash
   parser.
 
 ## Decision
 
-For each documented function, the filter SHALL resolve every source `@param`
-name to one canonical emitted identifier before emitting either the documentation
-block or the pseudo-C++ declaration.
+For each documented function, the filter SHALL resolve every recognized source
+`@param` name to one canonical emitted identifier before emitting either the
+documentation block or the pseudo-C++ declaration.
+
+The filter SHALL recognize these parameter directive forms:
+
+```text
+@param NAME Description.
+@param[in] NAME Description.
+@param[out] NAME Description.
+@param[in,out] NAME Description.
+```
+
+The optional direction qualifier is Doxygen metadata and SHALL be preserved
+verbatim in generated documentation.  It SHALL NOT participate in identifier
+sanitization, uniqueness resolution, or synthesized declaration generation.
+Only the parameter-name token that follows the directive and optional qualifier
+is subject to those operations.
 
 The canonical mapping SHALL apply the existing identifier sanitization rules and
 the existing uniqueness rules in source order.  Both outputs SHALL consume the
@@ -58,20 +90,29 @@ same resolved name:
 
 ```text
 Source:
-@param $1 First value.
+@param[in] $1 First value.
 
 Filtered representation:
-@param _1 First value.
+@param[in] _1 First value.
 int example(String _1);
 ```
 
-The filter SHALL rewrite only the parameter-name token in the emitted
-`@param` line.  The source file is not modified, and the remainder of the
-parameter documentation is preserved.
+The filter SHALL rewrite only the parameter-name token in the emitted `@param`
+line.  The source file is not modified.  The directive spelling, supported
+direction qualifier, whitespace before the name, and remainder of the parameter
+documentation are preserved.
 
 When multiple source names sanitize to the same identifier, the documentation
-and declaration SHALL use the same deterministic unique names.  For example,
-`--foo` followed by `foo` becomes `foo` followed by `foo_2` in both places.
+and declaration SHALL use the same deterministic unique names regardless of
+their direction qualifiers.  For example, `@param[in] --foo` followed by
+`@param[out] foo` becomes `foo` followed by `foo_2` in both the documentation
+and synthesized declaration while retaining `[in]` and `[out]` on their
+respective documentation lines.
+
+Bracketed `@param` forms other than `[in]`, `[out]`, and `[in,out]` are outside
+the structural recognition contract.  They MAY still pass through as ordinary
+Doxygen text, but the filter SHALL NOT guess at their meaning or synthesize a
+parameter from an unrecognized qualifier.
 
 ## Considered Alternatives
 
@@ -95,6 +136,20 @@ rejected because collision handling is order-dependent; resolving names twice
 creates an unnecessary opportunity for the declaration and documentation paths
 to diverge.
 
+### Treat the direction qualifier as part of the parameter name
+
+This would allow the old whitespace-based parser to remain largely unchanged,
+but it would feed strings such as `[in]` into identifier normalization and would
+conflate Doxygen metadata with Bash-oriented naming.  It was rejected because
+the qualifier must survive unchanged while only the following name token is
+normalized.
+
+### Strip direction qualifiers from generated documentation
+
+Removing `[in]`, `[out]`, or `[in,out]` would make name parsing easier, but would
+discard structured documentation supplied intentionally by the author.  The
+filter should preserve Doxygen metadata it can represent faithfully.
+
 ### Suppress parameter names in generated documentation
 
 Removing `@param` directives would avoid name validation, but would discard
@@ -102,26 +157,33 @@ useful structured documentation and reduce the value of the generated reference.
 
 ## Consequences
 
-Bash authors can continue to document positional parameters and option-like
-parameter names using the vocabulary natural to the source code.  The generated
-representation becomes internally consistent, allowing Doxygen to associate
-parameter documentation with the synthesized declaration.
+Bash authors can continue to document positional parameters, option-like names,
+variadic-style names, array-style names, assignment-style names, and
+numeric-leading names using vocabulary natural to the source code.  They may
+also attach standard Doxygen input/output direction metadata without changing
+how those names are normalized.
 
-The filter now maintains a small amount of per-documentation-block mapping
-state: source parameter names, their documentation-line positions, and their
-resolved emitted names.  That state is reset with the rest of the documentation
-block.
+The generated representation remains internally consistent: direction metadata
+stays on the documentation command while the rewritten parameter token exactly
+matches the identifier in the synthesized declaration.
 
-Regression coverage must compare both sides of the invariant.  Tests therefore
-exercise positional parameters and a sanitization collision, verifying that the
-emitted `@param` tokens exactly match the declaration identifiers.
+The filter maintains a small amount of per-documentation-block mapping state:
+source parameter names, their documentation-line positions, and their resolved
+emitted names.  Direction qualifiers do not require separate state because they
+remain in the original documentation line during name rewriting.
+
+Regression coverage compares both sides of the invariant.  Filter-level fixtures
+exercise all three supported direction qualifiers, sanitization categories, and
+a collision after normalization.  The focused Doxygen integration fixture also
+asserts that a preserved direction qualifier reaches Doxygen as parameter
+direction metadata.  Maintained source and all generated distribution artifacts
+run through the same semantic contracts under ADR-004.
 
 ## Open Questions and Follow-Ups
 
-A future integration test may invoke Doxygen itself when the project establishes
-a stable Doxygen test environment.  The filter-level regression is the primary
-test for this decision because the invariant is fully observable in the
-intermediate representation.
+If Doxygen adds additional standardized direction spellings that this project
+wants to support structurally, they should be added explicitly rather than
+broadening recognition to arbitrary bracket contents.
 
 If future Doxygen versions support a representation that preserves Bash-native
 parameter spelling without a synthesized identifier, this decision may be
@@ -129,7 +191,10 @@ revisited.
 
 ## Related Decisions
 
-- Related to: ADR-000, which requires capability honesty and evidence-oriented
-  reasoning.
-- Related to: GitHub issue #12, "Parameterized Bash functions disappear from
-  Doxygen output when @param uses $N names."
+- ADR-000 requires capability honesty and evidence-oriented reasoning.
+- ADR-004 governs the filter-level and focused Doxygen semantic regression
+  boundaries that exercise this invariant.
+- GitHub issue #12 introduced canonical parameter-name alignment for positional
+  and sanitized parameter names.
+- GitHub issue #18 extends that same invariant to standard Doxygen parameter
+  direction qualifiers.
