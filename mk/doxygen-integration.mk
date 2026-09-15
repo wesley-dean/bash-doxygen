@@ -16,6 +16,7 @@ test-doxygen:
 	@test -f "$(DOXYGEN_BASH_FILTER)" || { printf '%s\n' 'Missing Bash Doxygen filter' >&2; exit 1; }
 	@command -v doxygen >/dev/null 2>&1 || { printf '%s\n' 'doxygen is required for make test-doxygen' >&2; exit 1; }
 	$(MAKE) --no-print-directory integration-clean
+	@mkdir -p "$(INTEGRATION_OUT)"
 	AWK_BIN="$(AWK_BIN)" \
 	DOXYGEN_BASH_FILTER="$(abspath $(DOXYGEN_BASH_FILTER))" \
 		doxygen "$(INTEGRATION_CONFIG)"
