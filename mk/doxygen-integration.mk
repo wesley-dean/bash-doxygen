@@ -26,6 +26,7 @@ test-doxygen:
 	@grep -R -Fq 'Integration sentinel variable used to verify Doxygen indexing.' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq '<name>normalize_input</name>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq '<declname>input_value</declname>' "$(INTEGRATION_OUT)/xml"
+	@grep -R -Fq '<parametername direction="in">input_value</parametername>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'Value to normalize during integration testing.' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'A single normalized integration value.' "$(INTEGRATION_OUT)/xml"
 
