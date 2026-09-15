@@ -98,6 +98,10 @@ function strip_doc_marker(line,    s) {
     return s
 }
 
+function is_param_directive(meta) {
+    return (meta ~ /^@param(\[(in|out|in,out)\])?[ \t]+/)
+}
+
 function add_doc_line(line,    content, meta) {
     content = strip_doc_marker(line)
     doc_lines[++doc_count] = content
@@ -114,7 +118,7 @@ function add_doc_line(line,    content, meta) {
     } else if (meta ~ /^@var[ \t]+/) {
         doc_kind = "var"
         doc_name = parse_doc_symbol(meta, "@var")
-    } else if (meta ~ /^@param[ \t]+/) {
+    } else if (is_param_directive(meta)) {
         param_count++
         param_names[param_count] = parse_param_name(meta)
         param_doc_lines[param_count] = doc_count
@@ -132,7 +136,7 @@ function parse_doc_symbol(meta, directive,    s) {
 
 function parse_param_name(meta,    s) {
     s = meta
-    sub(/^@param[ \t]+/, "", s)
+    sub(/^@param(\[(in|out|in,out)\])?[ \t]+/, "", s)
     s = trim(s)
     sub(/[ \t].*$/, "", s)
     return s
@@ -185,11 +189,11 @@ function rewrite_param_name(line, old_name, new_name,    pos, tail, name_pos) {
     }
 
     tail = substr(line, pos + 6)
-    if (!match(tail, /[^ \t]/)) {
+    if (!match(tail, /^(\[(in|out|in,out)\])?[ \t]+/)) {
         return line
     }
 
-    name_pos = RSTART
+    name_pos = RLENGTH + 1
     return substr(line, 1, pos + 5) \
            substr(tail, 1, name_pos - 1) \
            new_name \
