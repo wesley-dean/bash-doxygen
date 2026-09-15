@@ -90,3 +90,14 @@ existing documentation-only dependency manifest, while `make adr-index`,
 boundary.  Doxygen uses the generated composite as its main page, and routine
 documentation generation remains free of automatic ADR relationship graphs.  See
 [`ADR-007`](adr/ADR-007-publish-ephemeral-adr-navigation-across-documentation-paths.md).
+
+## ADR-008: Bound declaration association with explicit lexical rules
+
+Explicit `local`, `readonly`, `export`, `declare`, and `typeset` commands may
+document a single uninitialized variable while preserving their existing
+metadata.  Only explicitly recognized ShellCheck `disable=` comments are
+transparent between a Doxygen block and its declaration; arbitrary comments
+remain association barriers.  Documented multi-name explicit declarations are
+rejected with a diagnostic and no partial first-symbol output, using a small
+lexical word counter rather than a general Bash parser.  See
+[`ADR-008`](adr/ADR-008-bound-declaration-association-with-explicit-lexical-rules.md).
