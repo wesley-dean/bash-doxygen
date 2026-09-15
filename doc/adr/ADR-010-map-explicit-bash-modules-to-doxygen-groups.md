@@ -236,20 +236,29 @@ group membership equivalent to:
 
 ```cpp
 /**
- * @var NETWORK_TIMEOUT
- * @brief Default network timeout in seconds.
  * @ingroup networking
+ * @brief Default network timeout in seconds.
  * @details Bash variable: readonly string
  */
 ReadonlyString NETWORK_TIMEOUT;
 ```
 
-The source `@module` or `@package` line SHALL be consumed.  Existing `@var`
-behavior is unchanged except that the generated documentation gains explicit
-group membership.
+The source `@module` or `@package` line SHALL be consumed.  For a successfully
+resolved grouped variable, the source `@var` directive also remains a required
+validation input but SHALL be consumed rather than forwarded to Doxygen.  The
+synthesized variable declaration becomes the single Doxygen-facing variable
+entity carrying the descriptive documentation and `@ingroup` membership.
 
-Requiring `@var` avoids changing the meaning of an otherwise module-only block
-based solely on whichever assignment happens to follow it.
+This grouped-variable rule is intentionally narrower than changing variable
+emission globally.  Ungrouped variables retain the existing `@var` behavior, and
+invalid module metadata does not suppress the ordinary `@var` path.  Focused
+integration testing showed that supported Doxygen versions do not handle
+`@ingroup` plus an explicit emitted `@var` consistently in one block; consuming
+`@var` only after successful group resolution avoids duplicate or ambiguous
+variable entities while preserving source-side validation.
+
+Requiring source `@var` still avoids changing the meaning of an otherwise
+module-only block based solely on whichever assignment happens to follow it.
 
 ### Modules and namespaces are orthogonal
 
@@ -377,6 +386,16 @@ Doxygen can represent subgroup relationships, but adding parent/child syntax now
 would enlarge the source grammar and conflict surface before the flat group model
 has been validated across supported Doxygen versions.  Nested groups are deferred.
 
+### Forward `@var` for grouped variables
+
+This would preserve the ordinary generated variable documentation form exactly.
+It was rejected after semantic integration testing because Doxygen 1.9.1 and
+1.9.8 do not compose an explicit emitted `@var` and `@ingroup` consistently in
+the same block.  Keeping source `@var` as validation metadata while letting the
+synthesized declaration be the Doxygen-facing variable preserves the intended
+identity, descriptive documentation, and group membership across the supported
+CI versions.
+
 ### Implement classes in the same change
 
 Issue #20 contains both groups/modules and documentation-only classes, but the two
@@ -403,6 +422,10 @@ to reason about without parser state.
 Namespaced functions may be grouped without changing their namespace identity.
 This composes ADR-009 with the new module abstraction rather than superseding it.
 
+Successfully grouped variables consume source `@var` after using it for name
+validation so that one synthesized Doxygen variable owns both documentation and
+group membership.  Ordinary ungrouped variable emission remains unchanged.
+
 The filter gains small per-block module state and an additional structural
 translation path, but it does not gain a general module parser, persistent scope,
 or source-layout inference.
@@ -427,7 +450,9 @@ module behavior.
 
 The feature is additive and does not change the generated identity of existing
 symbols.  It adds organizational group relationships only when source
-documentation explicitly requests them.
+documentation explicitly requests them.  For grouped variables, source `@var`
+continues to validate identity but is no longer emitted to Doxygen after module
+resolution succeeds.
 
 ## Expected Outcomes
 
