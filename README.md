@@ -42,8 +42,8 @@ readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/example"
 
 The filter preserves normal Doxygen commands such as `@brief`, `@details`,
 `@param`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, and custom aliases.
-It only interprets a small structural subset: `@file`, `@fn`, `@var`, and
-`@param` names.
+It only interprets a small structural subset: `@file`, `@fn`, `@namespace`,
+`@var`, and `@param` names.
 
 ## Manual usage
 
@@ -231,6 +231,7 @@ name() {
 name () {
 function name {
 function name() {
+namespace::name() {
 ```
 
 It recognizes documented variables using common assignment and declaration
@@ -255,6 +256,46 @@ Variable output is enriched with inferred Bash characteristics, including
 read-only/read-write, exported, local, indexed array, associative array,
 integer, nameref, lowercase transform, and uppercase transform.
 
+## Function namespaces
+
+Namespace support is explicit and function-only.  A literal Bash symbol that
+already contains `::` is preserved as source evidence and is emitted beneath the
+corresponding Doxygen namespace:
+
+```bash
+## @fn config::load()
+config::load() {
+  :
+}
+```
+
+A differently named Bash implementation can request the same documentation
+identity with a qualified `@fn`:
+
+```bash
+## @fn config::load()
+config_load() {
+  :
+}
+```
+
+or with `@namespace` plus an unqualified `@fn`:
+
+```bash
+## @namespace config
+## @fn load()
+config_load() {
+  :
+}
+```
+
+Nested namespace paths such as `network::http` are supported.  The filter does
+not infer namespaces from implementation prefixes such as `config_` or
+`network_http_`.  Redundant literal, `@fn`, and `@namespace` evidence is accepted
+when it agrees; contradictory explicit evidence produces a diagnostic.  The
+source `@namespace` and `@fn` directives are consumed as structural metadata and
+are not emitted into the generated function documentation block.
+
 ## Diagnostics
 
 Diagnostics are written to standard error.  The filter warns when:
@@ -262,8 +303,12 @@ Diagnostics are written to standard error.  The filter warns when:
 - a documentation block is not followed by a recognized declaration;
 - an `@fn` block precedes a variable declaration;
 - an `@var` block precedes a function declaration;
-- an `@fn` name differs from the function declaration;
-- an `@var` name differs from the variable declaration.
+- an ordinary unqualified `@fn` name differs from the function declaration;
+- an `@var` name differs from the variable declaration;
+- an `@namespace` path is invalid, incomplete, or used for variable
+  documentation; or
+- explicit namespace evidence conflicts with literal or qualified function
+  identity.
 
 With `--strict`, any warning causes the filter to exit non-zero.
 
@@ -308,7 +353,10 @@ make check
 This project is not a full Bash parser.  It is a documentation compiler for the
 small subset of Bash declarations that can reasonably follow a Doxygen block.
 The parser is permissive about whitespace and declaration style, but strict
-about documented intent when `@fn` or `@var` is provided.
+about documented intent when `@fn`, `@namespace`, or `@var` is provided.
+Documentation namespaces are derived only from literal `::` qualification or
+explicit structural metadata; underscore or prefix conventions are never
+inferred.
 
 ## Governance
 
@@ -316,8 +364,10 @@ Architecture decisions are recorded in `doc/adr/`, with concise summaries in
 `doc/decisions.md`.  ADR-003 governs the three executable release representations
 and their checksums, ADR-004 governs behavior-focused TAP regression testing,
 ADR-005 governs stable reference publication, ADR-006 governs current-source and
-released-artifact documentation canaries, and ADR-007 governs the ephemeral ADR
-landing page shared by all documentation paths.
+released-artifact documentation canaries, ADR-007 governs the ephemeral ADR
+landing page shared by all documentation paths, ADR-008 governs bounded
+declaration association, and ADR-009 governs documentation namespaces and
+literal qualified function identities.
 
 ## License
 
