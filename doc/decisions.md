@@ -120,7 +120,9 @@ is accepted as an exact alias and is translated to the same language-neutral
 Doxygen group model rather than package semantics.  Module-only blocks create
 flat Doxygen groups; explicit `@fn` and `@var` blocks may opt individual symbols
 into a group with `@ingroup`, including namespaced functions governed by ADR-009.
-Membership is local to each documentation block, is never inferred from names or
-files, and nested groups plus class abstractions remain separate future work.
-See
+For successfully grouped variables, source `@var` remains required for identity
+validation but is consumed so the synthesized declaration is the single
+Doxygen-facing grouped variable.  Membership is local to each documentation
+block, is never inferred from names or files, and nested groups plus class
+abstractions remain separate future work.  See
 [`ADR-010`](adr/ADR-010-map-explicit-bash-modules-to-doxygen-groups.md).
