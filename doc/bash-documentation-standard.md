@@ -62,14 +62,22 @@ are decorated with a Doxygen block.
 Documentation blocks must therefore remain contiguous and associated with the
 function or variable declaration they document.
 
-The filter structurally understands `@file`, `@fn`, `@var`, and `@param` names
-and preserves ordinary Doxygen commands such as `@brief`, `@details`,
-`@returns`, `@retval`, `@note`, `@warning`, `@see`, `@par`, `@code`, and
-`@endcode`.
+The filter structurally understands `@file`, `@fn`, `@namespace`, `@var`, and
+`@param` names and preserves ordinary Doxygen commands such as `@brief`,
+`@details`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, `@par`, `@code`,
+and `@endcode`.
 
-When `@fn` or `@var` is used, the documented name must agree with the
-declaration that follows.  Maintainers should prefer the explicit structural
-commands because they allow tooling to catch documentation drift.
+For ordinary unqualified functions, `@fn` continues to validate the physical
+Bash declaration that follows.  `@var` likewise must agree with the following
+variable declaration.  Namespace-oriented function documentation is a distinct
+case: a literal Bash function name containing `::`, a qualified `@fn`, or an
+explicit `@namespace` combined with `@fn` may establish a qualified documentation
+identity according to ADR-009.  The tooling must not infer namespace membership
+from implementation prefixes such as `config_` or `network_http_`.
+
+Maintainers should prefer explicit structural commands because they allow tooling
+to catch documentation drift.  When multiple namespace-related sources are
+present, they must agree rather than relying on precedence to hide a conflict.
 
 ## File Blocks
 
@@ -184,6 +192,76 @@ Material side effects must be documented in `@details` or, when useful, in a
 dedicated `@par Side Effects` section.  This includes changes to caller-visible
 variables, shell options, traps, files, directories, or other state outside the
 function's local scope.
+
+### Function Namespaces
+
+Function namespaces are an optional documentation abstraction.  They do not
+change the runtime Bash symbol and must not be described as a Bash language
+namespace facility.
+
+A function whose physical Bash name already contains a valid qualified identity
+may document that literal name directly:
+
+```bash
+## @fn config::load()
+## @brief Loads configuration.
+config::load() {
+  :
+}
+```
+
+A differently named implementation may request the same documentation identity
+with a qualified `@fn`:
+
+```bash
+## @fn config::load()
+## @brief Loads configuration.
+config_load() {
+  :
+}
+```
+
+Alternatively, use an explicit `@namespace` together with an unqualified `@fn`:
+
+```bash
+## @namespace config
+## @fn load()
+## @brief Loads configuration.
+config_load() {
+  :
+}
+```
+
+Nested documentation namespaces use `::` separators:
+
+```bash
+## @namespace network::http
+## @fn get()
+network_http_get() {
+  :
+}
+```
+
+Each namespace segment must be a valid documentation identifier beginning with a
+letter or underscore and continuing with letters, digits, or underscores.
+`@namespace` alone must not be used to infer a member name from an unqualified
+implementation symbol.  Documentation-only remapping requires an explicit
+member identity through `@fn`.
+
+The physical Bash declaration, qualified `@fn`, and `@namespace` metadata may be
+redundant when they agree.  Contradictory evidence is a documentation defect and
+must be corrected rather than relying on the filter to choose one source
+silently.
+
+Do not infer namespace membership from underscore prefixes, filename placement,
+sourcing relationships, or similar conventions.  For example, the physical
+symbol `config_load` remains an ordinary flat function unless the source also
+contains explicit namespace documentation.
+
+`@namespace` and `@fn` are source-side structural directives.  For a successfully
+resolved function, `bash-doxygen` consumes them while generating the Doxygen
+namespace structure and synthesized member declaration.  Their absence from the
+generated comment block does not remove their source-level documentation role.
 
 ### Paragraphs for STDIN, STDOUT, and STDERR
 
@@ -427,25 +505,30 @@ without forcing all consumers to receive the same comment volume.
 
 ## General Function Structure Pattern
 
-1. `@fn`
-2. `@brief`
-3. `@details`
-4. additional `@note`, `@warning`, `@see`, and `@par Side Effects` directives
+1. optional `@namespace` when an explicit documentation namespace is required
+2. `@fn`
+3. `@brief`
+4. `@details`
+5. additional `@note`, `@warning`, `@see`, and `@par Side Effects` directives
    as needed; directives that qualify a specific section may appear adjacent to
    that section
-5. blank line
-6. zero or more `@param` directives
-7. blank line
-8. exactly one `@par STDIN`
-9. exactly one `@par STDOUT`
-10. exactly one `@par STDERR`
-11. blank line
-12. exactly one `@returns`
-13. zero or more `@retval` directives
-14. `@par Examples`
-15. `@code`
-16. example lines
-17. `@endcode`
+6. blank line
+7. zero or more `@param` directives
+8. blank line
+9. exactly one `@par STDIN`
+10. exactly one `@par STDOUT`
+11. exactly one `@par STDERR`
+12. blank line
+13. exactly one `@returns`
+14. zero or more `@retval` directives
+15. `@par Examples`
+16. `@code`
+17. example lines
+18. `@endcode`
+
+A qualified `@fn` may establish the documentation namespace without a separate
+`@namespace`.  Do not add redundant `@namespace` metadata unless the redundancy
+improves source clarity and all explicit identity sources agree.
 
 ## Review Standard
 
@@ -475,6 +558,11 @@ applicable:
 * the file has `# shellcheck shell=bash`;
 * the file has `## @file`, `## @brief`, and substantive `## @details`;
 * all functions have `@fn`, `@brief`, and `@details`;
+* namespaced function documentation uses a literal qualified Bash name, a
+  qualified `@fn`, or explicit `@namespace` plus `@fn`, and does not rely on
+  inferred implementation prefixes;
+* redundant namespace evidence agrees when more than one explicit source is
+  present;
 * parameters are documented in call order;
 * every function contains exactly one `@par STDIN`, one `@par STDOUT`, one
   `@par STDERR`, and one `@returns`;

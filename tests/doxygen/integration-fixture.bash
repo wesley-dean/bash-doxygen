@@ -2,8 +2,8 @@
 ## @file integration-fixture.bash
 ## @brief Provides the focused bash-doxygen Doxygen integration fixture.
 ## @details
-## Exercises file, variable, function, and parameter documentation through the
-## complete Bash source to pseudo-C++ to Doxygen XML path.
+## Exercises file, variable, function, parameter, and namespace documentation
+## through the complete Bash source to pseudo-C++ to Doxygen XML path.
 
 ## @var BASH_DOXYGEN_INTEGRATION_VALUE
 ## @brief Integration sentinel variable used to verify Doxygen indexing.
@@ -30,4 +30,25 @@ readonly BASH_DOXYGEN_INTEGRATION_VALUE='ready'
 ## @retval 0 The integration value was emitted successfully.
 normalize_input() {
   printf '%s\n' "$1"
+}
+
+## @namespace integration::nested
+## @fn namespaced()
+## @brief Provides a documentation-only namespace integration sentinel.
+## @details
+## Verifies that explicit namespace metadata can map a differently named Bash
+## implementation into a nested Doxygen namespace.
+##
+## @par STDIN
+## Nothing is read from STDIN.
+## @par STDOUT
+## Nothing is written to STDOUT.
+## @par STDERR
+## Nothing is written to STDERR.
+##
+## @returns Nothing is written to STDOUT.
+##
+## @retval 0 The integration sentinel completed successfully.
+integration_namespaced() {
+  :
 }
