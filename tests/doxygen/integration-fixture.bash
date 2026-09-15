@@ -16,7 +16,7 @@ readonly BASH_DOXYGEN_INTEGRATION_VALUE='ready'
 ## checked without depending on the repository's full reference-documentation
 ## corpus.
 ##
-## @param input_value Value to normalize during integration testing.
+## @param[in] input_value Value to normalize during integration testing.
 ##
 ## @par STDIN
 ## Nothing is read from STDIN.
