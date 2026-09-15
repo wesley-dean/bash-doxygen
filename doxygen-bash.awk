@@ -21,11 +21,16 @@
 #   function name() {
 #   function name {
 #   readonly NAME=value
+#   readonly NAME
 #   declare -r NAME=value
 #   declare -a NAME=(...)
 #   declare -A NAME=(...)
+#   declare NAME
+#   typeset NAME
 #   export NAME=value
+#   export NAME
 #   local NAME=value
+#   local NAME
 #   NAME=value
 #   NAME=(...)
 #
@@ -90,6 +95,11 @@ function is_blank(line) {
 
 function is_doc_line(line) {
     return (line ~ /^[ \t]*##([ \t]|$)/)
+}
+
+function is_transparent_annotation(line,    s) {
+    s = trim(line)
+    return (s ~ /^#[ \t]*shellcheck[ \t]+disable=SC[0-9]+([ \t]*,[ \t]*SC[0-9]+)*[ \t]*$/)
 }
 
 function strip_doc_marker(line,    s) {
@@ -274,6 +284,93 @@ function emit_function(name,    params) {
     print "int " name "(" params ");"
 }
 
+function count_top_level_words(s,    i, ch, quote, escaped, paren_depth, brace_depth, bracket_depth, in_word, count) {
+    quote = ""
+    escaped = 0
+    paren_depth = 0
+    brace_depth = 0
+    bracket_depth = 0
+    in_word = 0
+    count = 0
+
+    for (i = 1; i <= length(s); i++) {
+        ch = substr(s, i, 1)
+
+        if (escaped) {
+            escaped = 0
+            in_word = 1
+            continue
+        }
+
+        if (quote != "") {
+            if (quote != "'" && ch == "\\") {
+                escaped = 1
+            } else if (ch == quote) {
+                quote = ""
+            }
+            in_word = 1
+            continue
+        }
+
+        if (ch == "\\") {
+            escaped = 1
+            in_word = 1
+            continue
+        }
+        if (ch == "'" || ch == "\"" || ch == "`") {
+            quote = ch
+            in_word = 1
+            continue
+        }
+        if (ch == "(") {
+            paren_depth++
+            in_word = 1
+            continue
+        }
+        if (ch == ")" && paren_depth > 0) {
+            paren_depth--
+            in_word = 1
+            continue
+        }
+        if (ch == "{") {
+            brace_depth++
+            in_word = 1
+            continue
+        }
+        if (ch == "}" && brace_depth > 0) {
+            brace_depth--
+            in_word = 1
+            continue
+        }
+        if (ch == "[") {
+            bracket_depth++
+            in_word = 1
+            continue
+        }
+        if (ch == "]" && bracket_depth > 0) {
+            bracket_depth--
+            in_word = 1
+            continue
+        }
+
+        if ((ch == " " || ch == "\t") && paren_depth == 0 && brace_depth == 0 && bracket_depth == 0) {
+            if (in_word) {
+                count++
+                in_word = 0
+            }
+            continue
+        }
+
+        in_word = 1
+    }
+
+    if (in_word) {
+        count++
+    }
+
+    return count
+}
+
 function classify_variable(raw_line, info,    line, opts, name, value, eqpos, token) {
     delete info
     line = raw_line
@@ -284,6 +381,8 @@ function classify_variable(raw_line, info,    line, opts, name, value, eqpos, to
     info["readonly"] = "no"
     info["exported"] = "no"
     info["declared"] = "no"
+    info["explicit"] = "no"
+    info["unsupported"] = ""
     info["array"] = "scalar"
     info["integer"] = "no"
     info["nameref"] = "no"
@@ -293,15 +392,22 @@ function classify_variable(raw_line, info,    line, opts, name, value, eqpos, to
 
     if (line ~ /^local([ \t]|$)/) {
         info["storage"] = "local"
+        info["declared"] = "yes"
+        info["explicit"] = "yes"
         sub(/^local[ \t]+/, "", line)
     } else if (line ~ /^readonly([ \t]|$)/) {
         info["readonly"] = "yes"
+        info["declared"] = "yes"
+        info["explicit"] = "yes"
         sub(/^readonly[ \t]+/, "", line)
     } else if (line ~ /^export([ \t]|$)/) {
         info["exported"] = "yes"
+        info["declared"] = "yes"
+        info["explicit"] = "yes"
         sub(/^export[ \t]+/, "", line)
     } else if (line ~ /^(declare|typeset)([ \t]|$)/) {
         info["declared"] = "yes"
+        info["explicit"] = "yes"
         sub(/^(declare|typeset)[ \t]+/, "", line)
     }
 
@@ -325,6 +431,11 @@ function classify_variable(raw_line, info,    line, opts, name, value, eqpos, to
 
     if (line == "") {
         return 0
+    }
+
+    if (info["explicit"] == "yes" && count_top_level_words(line) > 1) {
+        info["unsupported"] = "multi_name"
+        return -1
     }
 
     eqpos = index(line, "=")
@@ -463,6 +574,11 @@ function flush_unmatched_docs(reason) {
             emit_blank()
         }
 
+        if (doc_count > 0 && is_transparent_annotation(source_line)) {
+            emit_blank()
+            next
+        }
+
         if (doc_count > 0 && is_probable_function_decl(source_line)) {
             fn_name = normalize_func_decl(source_line)
             if (doc_kind == "var") {
@@ -476,17 +592,31 @@ function flush_unmatched_docs(reason) {
             next
         }
 
-        if (doc_count > 0 && classify_variable(source_line, var_info)) {
-            if (doc_kind == "fn") {
-                fail_or_warn("@fn block precedes variable declaration " var_info["name"])
+        if (doc_count > 0) {
+            variable_status = classify_variable(source_line, var_info)
+
+            if (variable_status < 0 && var_info["unsupported"] == "multi_name") {
+                fail_or_warn("documented multi-name variable declarations are unsupported")
+                emit_doc_block("@warning Multiple Bash variable names in one declaration are outside the supported association model.")
+                delete var_info
+                reset_doc()
+                next
             }
-            if (doc_name != "" && doc_name != var_info["name"]) {
-                fail_or_warn("@var documents " doc_name " but declaration is " var_info["name"])
+
+            if (variable_status > 0) {
+                if (doc_kind == "fn") {
+                    fail_or_warn("@fn block precedes variable declaration " var_info["name"])
+                }
+                if (doc_name != "" && doc_name != var_info["name"]) {
+                    fail_or_warn("@var documents " doc_name " but declaration is " var_info["name"])
+                }
+                emit_variable(var_info)
+                delete var_info
+                reset_doc()
+                next
             }
-            emit_variable(var_info)
+
             delete var_info
-            reset_doc()
-            next
         }
 
         flush_unmatched_docs("documentation block was not followed by a recognized declaration")
