@@ -43,7 +43,7 @@ readonly CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/example"
 The filter preserves normal Doxygen commands such as `@brief`, `@details`,
 `@param`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, and custom aliases.
 It only interprets a small structural subset: `@file`, `@fn`, `@namespace`,
-`@var`, and `@param` names.
+`@module`, `@package`, `@var`, and `@param` names.
 
 ## Manual usage
 
@@ -296,6 +296,60 @@ when it agrees; contradictory explicit evidence produces a diagnostic.  The
 source `@namespace` and `@fn` directives are consumed as structural metadata and
 are not emitted into the generated function documentation block.
 
+## Documentation modules and groups
+
+Logical Bash API modules are mapped to Doxygen groups.  `@module` is the
+canonical source spelling.  `@package` is accepted as an exact alias and is
+translated to the same group model; it does not imply Java package semantics or
+another language-specific package construct.
+
+A module-only documentation block defines the Doxygen group:
+
+```bash
+## @module networking
+## @brief Network-related functionality.
+```
+
+The filter translates that block to a Doxygen `@defgroup` definition.  Module
+identifiers are intentionally flat in the initial contract and must match
+`[A-Za-z_][A-Za-z0-9_]*`; nested module/group paths are not currently supported.
+
+A function opts into a module by combining the module marker with an explicit
+`@fn`:
+
+```bash
+## @module networking
+## @fn download()
+## @brief Downloads a resource.
+download() {
+  :
+}
+```
+
+A variable uses the same pattern with an explicit `@var`:
+
+```bash
+## @module networking
+## @var NETWORK_TIMEOUT
+## @brief Default network timeout in seconds.
+readonly NETWORK_TIMEOUT=30
+```
+
+Member blocks are translated to Doxygen `@ingroup` membership.  The source
+`@module` or `@package` directive is consumed as structural metadata and is not
+passed through to Doxygen.
+
+Module membership is local to each documentation block.  A module definition
+does not establish persistent scope for later symbols, and the filter does not
+infer modules from prefixes, filenames, directories, sourcing relationships, or
+namespace names.  A function or variable placed directly after a module marker
+without the required `@fn` or `@var` is diagnosed instead of being assigned by
+proximity.
+
+Modules and function namespaces are orthogonal.  A function may remain a member
+of a namespace established under the namespace rules above while independently
+belonging to a Doxygen group.
+
 ## Diagnostics
 
 Diagnostics are written to standard error.  The filter warns when:
@@ -306,9 +360,14 @@ Diagnostics are written to standard error.  The filter warns when:
 - an ordinary unqualified `@fn` name differs from the function declaration;
 - an `@var` name differs from the variable declaration;
 - an `@namespace` path is invalid, incomplete, or used for variable
-  documentation; or
+  documentation;
 - explicit namespace evidence conflicts with literal or qualified function
-  identity.
+  identity;
+- a module identifier is malformed or outside the supported flat identifier
+  grammar;
+- `@module` and/or `@package` metadata in one block names conflicting modules;
+  or
+- module membership is attempted without explicit `@fn` or `@var` metadata.
 
 With `--strict`, any warning causes the filter to exit non-zero.
 
@@ -353,10 +412,11 @@ make check
 This project is not a full Bash parser.  It is a documentation compiler for the
 small subset of Bash declarations that can reasonably follow a Doxygen block.
 The parser is permissive about whitespace and declaration style, but strict
-about documented intent when `@fn`, `@namespace`, or `@var` is provided.
-Documentation namespaces are derived only from literal `::` qualification or
-explicit structural metadata; underscore or prefix conventions are never
-inferred.
+about documented intent when `@fn`, `@namespace`, `@module`, `@package`, or
+`@var` is provided.  Documentation namespaces are derived only from literal
+`::` qualification or explicit structural metadata; underscore or prefix
+conventions are never inferred.  Documentation modules likewise require an
+explicit block-local marker and do not create persistent source scope.
 
 ## Governance
 
@@ -366,8 +426,9 @@ and their checksums, ADR-004 governs behavior-focused TAP regression testing,
 ADR-005 governs stable reference publication, ADR-006 governs current-source and
 released-artifact documentation canaries, ADR-007 governs the ephemeral ADR
 landing page shared by all documentation paths, ADR-008 governs bounded
-declaration association, and ADR-009 governs documentation namespaces and
-literal qualified function identities.
+declaration association, ADR-009 governs documentation namespaces and literal
+qualified function identities, and ADR-010 governs documentation modules and
+their Doxygen group representation.
 
 ## License
 
