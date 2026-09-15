@@ -42,6 +42,9 @@ jobs:
             AWK_DOXYGEN_FILTER=vendor/doxygen-awk.awk \
             BASH_DOXYGEN_FILTER=doxygen-bash.awk
 
+      - name: Exercise current Bash filter through focused Doxygen fixture
+        run: make test-doxygen DOXYGEN_BASH_FILTER=doxygen-bash.awk
+
       - name: Verify generated documentation state
         run: |
           test -f doc/adr/README.md
@@ -99,6 +102,9 @@ jobs:
           make docs-canary \
             AWK_DOXYGEN_FILTER=vendor/doxygen-awk.awk \
             BASH_DOXYGEN_FILTER=.release-canary/doxygen-bash.awk
+
+      - name: Exercise exact released Bash filter through focused Doxygen fixture
+        run: make test-doxygen DOXYGEN_BASH_FILTER=.release-canary/doxygen-bash.awk
 
       - name: Verify generated documentation state
         run: |
