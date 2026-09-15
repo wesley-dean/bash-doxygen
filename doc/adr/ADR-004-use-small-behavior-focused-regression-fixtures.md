@@ -14,7 +14,9 @@ source-to-pseudo-C++ translation behavior and how those results are reported.
 The decision favors many small cases that establish narrow observable contracts,
 uses one semantic suite for every maintained/generated representation, and emits
 standards-compliant TAP so local and automated callers receive a machine-readable
-test stream.
+test stream.  A separate focused Doxygen integration path verifies that selected
+intermediate representations also produce the intended downstream documentation
+model.
 
 ## Context
 
@@ -33,6 +35,14 @@ the same semantic suite.  Running several independent TAP documents and merely
 concatenating them would create an ambiguous top-level stream, so the harness
 needs to understand multiple explicitly labeled filters in one invocation.
 
+Issue #22 identifies a separate gap.  Golden pseudo-C++ output can prove the
+translation contract owned directly by this repository, but it cannot prove that
+Doxygen interprets that representation as the intended file, variable, function,
+and parameter model.  The sibling `python-doxygen` project already uses a small,
+XML-only Doxygen fixture for this boundary.  Reusing that pattern keeps the
+integration test narrow and avoids coupling regression expectations to generated
+HTML presentation details.
+
 ## Decision Drivers
 
 - Make a failing test identify the affected behavior and representation quickly.
@@ -46,6 +56,9 @@ needs to understand multiple explicitly labeled filters in one invocation.
 - Keep GNU awk linting separate from runtime regression testing.
 - Test generated-artifact provenance and checksum boundaries without snapshotting
   complete generated files.
+- Prove selected Doxygen-facing semantics without snapshotting generated HTML.
+- Reuse a dedicated integration fixture rather than overloading the repository's
+  full reference-documentation corpus with narrow semantic assertions.
 
 ## Decision
 
@@ -100,6 +113,46 @@ artifact SHALL retain build-owned provenance while omitting full-line comments
 from its source body.  The minified artifact SHALL identify the pinned AWK
 Minifier used to transform the ordinary body.
 
+### Focused Doxygen semantic integration
+
+The repository SHALL maintain a dedicated Doxygen integration fixture and
+configuration beneath:
+
+```text
+tests/doxygen/
+```
+
+This fixture SHALL remain intentionally small.  It exists to verify the semantic
+contract between Bash documentation, `bash-doxygen`'s generated pseudo-C++, and
+Doxygen rather than to reproduce the repository's full reference site.
+
+`make test-doxygen` SHALL run the selected `DOXYGEN_BASH_FILTER` against that
+fixture through Doxygen.  The dedicated Doxyfile SHALL generate XML and SHALL NOT
+generate HTML.  Assertions SHALL inspect the generated XML for stable semantic
+content representing, at minimum:
+
+- file-level documentation;
+- one documented variable;
+- one documented function;
+- the function's parameter identity and documentation; and
+- the function's return documentation.
+
+The integration test SHALL assert meaningful names and documentation content
+rather than snapshotting Doxygen's complete XML tree.  This keeps the test strong
+enough to detect a representation that Doxygen no longer understands while
+avoiding unnecessary coupling to Doxygen formatting or identifier churn.
+
+`make test-doxygen-dist` SHALL build the development, ordinary, and minified
+artifacts and run the same focused Doxygen contract against each exact generated
+filter.  The maintained source path and generated-artifact paths therefore share
+one downstream semantic fixture just as they share one filter-level regression
+suite.
+
+Focused Doxygen integration is an adjacent validation target rather than part of
+the TAP stream emitted by `make test`.  Doxygen availability is an environment
+requirement for `make test-doxygen` and `make test-doxygen-dist`, while ordinary
+filter-level regressions remain runnable without Doxygen.
+
 ### Lint boundary
 
 GNU awk lint is a source-validation concern, not a regression-test concern.
@@ -144,6 +197,22 @@ Helpers such as identifier sanitization and variable classification are
 implementation details.  The suite continues to protect observable filter
 behavior so internals can be refactored without unnecessary fixture churn.
 
+### Snapshot generated Doxygen HTML
+
+The focused integration test could generate HTML and compare complete pages or
+file trees.  This was rejected because presentation markup, filenames, and other
+rendering details can change independently of the semantic documentation model.
+XML provides a smaller and more direct assertion surface for Doxygen entities and
+documentation content.
+
+### Use the full project reference corpus for every semantic assertion
+
+The existing documentation canary already proves that real maintained repository
+source can flow through Doxygen.  Adding narrow entity assertions to that large
+corpus would make failures harder to localize and would mix site-generation
+concerns with parser semantics.  The focused fixture remains separate while the
+broader canary continues independently under ADR-006.
+
 ## Consequences
 
 A `make test` failure identifies both the behavior and the filter representation
@@ -159,14 +228,25 @@ Generated artifact checks protect build metadata and checksums without accepting
 large generated files as golden source.  Golden pseudo-C++ files remain focused
 on the translation behavior this project owns directly.
 
+Focused Doxygen integration adds a second semantic boundary.  A generated
+pseudo-C++ representation can now fail validation even when it still matches its
+golden file if Doxygen no longer creates the intended documentation model from
+that representation.
+
+The XML-only integration output is generated under ignored temporary state and is
+removed by `make integration-clean` or the ordinary clean path.  No generated
+Doxygen output becomes maintained source.
+
 Lint failures remain independently actionable through `make check` and cannot be
 mistaken for runtime fixture failures.
 
 ## Open Questions and Follow-Ups
 
-A future Doxygen integration test can validate a small number of end-to-end cases
-against Doxygen itself.  Such tests would complement, rather than replace, the
-filter-level fixtures and are tracked separately.
+Namespace, group/module, and class assertions SHALL be added to the focused
+Doxygen fixture when the corresponding source-language features are implemented.
+The integration harness should establish the semantic assertion pattern first;
+it should not pre-commit those future features to an unverified pseudo-C++
+representation.
 
 Coverage measurement for AWK is not introduced by this decision.  If the project
 later adopts coverage tooling, it should be evaluated separately rather than
@@ -178,6 +258,6 @@ using a percentage target as a substitute for behavior-oriented cases.
 - ADR-001 and ADR-002 define parameter and synthesized-signature invariants that
   the fixture corpus exercises.
 - ADR-003 defines maintained, development, ordinary, and minified
-  representations that share this regression suite.
-- ADR-006 defines Doxygen integration canaries that complement focused parser
-  regression tests.
+  representations that share both filter-level and focused Doxygen validation.
+- ADR-006 defines broader current-source and exact-release Doxygen canaries that
+  also exercise this focused semantic boundary.

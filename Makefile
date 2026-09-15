@@ -254,7 +254,7 @@ docs-canary:
 docs-clean:
 	rm -rf "$(REFERENCE_DOC_DIR)"
 
-clean: docs-clean
+clean: docs-clean integration-clean
 	rm -rf "$(DIST_DIR)"
 
 ## Remove all generated build, reference, ADR-navigation, and dependency state.
@@ -262,4 +262,5 @@ distclean: clean
 	rm -rf "$(VENDOR_DIR)"
 	rm -f "$(ADR_INDEX_FILE)"
 
+include mk/doxygen-integration.mk
 include mk/megalinter.mk

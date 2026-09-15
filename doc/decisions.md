@@ -46,10 +46,12 @@ and publish adjacent `.sha256` files, creating a six-file release contract.  See
 
 Regression coverage remains organized around small named source fixtures and
 matching golden pseudo-C++ output so each failure identifies a narrow observable
-contract.  One POSIX shell harness can exercise maintained source plus all three
-generated AWK artifacts and reports the complete invocation as standards-compliant
-TAP, including artifact provenance and checksum assertions.  GNU awk lint remains
-a separate `make check` boundary rather than becoming part of `make test`.  See
+contract.  One POSIX shell harness exercises maintained source plus all three
+generated AWK artifacts as standards-compliant TAP, while a separate XML-only
+Doxygen fixture verifies selected downstream file, variable, function, parameter,
+and return semantics for maintained and generated filters.  GNU awk lint remains
+a separate `make check` boundary rather than becoming part of either semantic
+test path.  See
 [`ADR-004`](adr/ADR-004-use-small-behavior-focused-regression-fixtures.md).
 
 ## ADR-005: Publish ephemeral reference documentation with pinned filters
@@ -67,12 +69,12 @@ prepared.  See
 ## ADR-006: Continuously dogfood current and released filters
 
 Stable Pages publication stays pinned, while two separate canaries detect
-regressions earlier.  Pull-request and `main` CI generate the same reference
-corpus with current repository `doxygen-bash.awk` as the Bash filter, and a
-release-published canary downloads, verifies, and exercises the exact canonical
-released `doxygen-bash.awk` artifact.  Neither canary mutates the stable
-dependency pin, and both complement rather than replace focused parser fixtures.
-See
+regressions earlier.  Pull-request and `main` CI exercise current repository
+`doxygen-bash.awk` through both the broad project-reference corpus and the focused
+XML semantic fixture, while the release-published canary repeats those checks
+with the exact checksum-verified canonical released `doxygen-bash.awk` artifact.
+Neither canary mutates the stable dependency pin, and both complement rather than
+replace the filter-level regression suite.  See
 [`ADR-006`](adr/ADR-006-continuously-dogfood-current-and-released-filters.md).
 
 ## ADR-007: Publish ephemeral ADR navigation across documentation paths
