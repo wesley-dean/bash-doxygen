@@ -4,9 +4,9 @@
  */
 int download();
 /**
- * @ingroup networking
  * @var NETWORK_TIMEOUT
  * @brief Default network timeout in seconds.
+ * @ingroup networking
  * @details Bash variable: readonly string
  */
 ReadonlyString NETWORK_TIMEOUT;
