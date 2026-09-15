@@ -20,6 +20,7 @@
 #   name () {
 #   function name() {
 #   function name {
+#   namespace::name() {
 #   readonly NAME=value
 #   readonly NAME
 #   declare -r NAME=value
@@ -58,6 +59,8 @@ function reset_doc() {
     doc_count = 0
     doc_kind = ""
     doc_name = ""
+    doc_namespace = ""
+    doc_namespace_conflict = ""
     param_count = 0
     delete doc_lines
     delete param_names
@@ -112,7 +115,7 @@ function is_param_directive(meta) {
     return (meta ~ /^@param(\[(in|out|in,out)\])?[ \t]+/)
 }
 
-function add_doc_line(line,    content, meta) {
+function add_doc_line(line,    content, meta, namespace_name) {
     content = strip_doc_marker(line)
     doc_lines[++doc_count] = content
 
@@ -121,6 +124,13 @@ function add_doc_line(line,    content, meta) {
     if (meta ~ /^@file([ \t]|$)/) {
         if (doc_kind == "") {
             doc_kind = "file"
+        }
+    } else if (meta ~ /^@namespace[ \t]+/) {
+        namespace_name = parse_doc_symbol(meta, "@namespace")
+        if (doc_namespace != "" && doc_namespace != namespace_name) {
+            doc_namespace_conflict = namespace_name
+        } else {
+            doc_namespace = namespace_name
         }
     } else if (meta ~ /^@fn[ \t]+/) {
         doc_kind = "fn"
@@ -235,7 +245,7 @@ function emit_doc_block(extra_line, suppress_fn,    i, line, meta) {
     for (i = 1; i <= doc_count; i++) {
         line = doc_lines[i]
         meta = trim(line)
-        if (suppress_fn && meta ~ /^@fn([ \t]|$)/) {
+        if (suppress_fn && (meta ~ /^@fn([ \t]|$)/ || meta ~ /^@namespace([ \t]|$)/)) {
             continue
         }
         if (line == "") {
@@ -276,12 +286,154 @@ function is_probable_function_decl(line) {
            (line ~ /^[ \t]*(function[ \t]+)?[A-Za-z_][A-Za-z0-9_:]*[ \t]*(\(\))?[ \t]*(\{|$)/)
 }
 
-function emit_function(name,    params) {
+function is_valid_identifier(name) {
+    return (name ~ /^[A-Za-z_][A-Za-z0-9_]*$/)
+}
+
+function is_valid_namespace_path(path,    parts, count, i) {
+    if (path == "") {
+        return 0
+    }
+
+    count = split(path, parts, "::")
+    for (i = 1; i <= count; i++) {
+        if (!is_valid_identifier(parts[i])) {
+            return 0
+        }
+    }
+
+    return 1
+}
+
+function split_qualified_identity(identity, info,    parts, count, i, namespace_name) {
+    delete info
+
+    if (index(identity, "::") == 0) {
+        return 0
+    }
+
+    count = split(identity, parts, "::")
+    if (count < 2) {
+        return 0
+    }
+
+    for (i = 1; i <= count; i++) {
+        if (!is_valid_identifier(parts[i])) {
+            return 0
+        }
+    }
+
+    namespace_name = parts[1]
+    for (i = 2; i < count; i++) {
+        namespace_name = namespace_name "::" parts[i]
+    }
+
+    info["namespace"] = namespace_name
+    info["member"] = parts[count]
+    return 1
+}
+
+function resolve_function_identity(fn_name, info,    literal_info, documented_info, resolved_info, literal_qualified, documented_qualified, doc_has_qualification, valid_namespace, combined, identity, function_doc_name) {
+    delete info
+
+    function_doc_name = (doc_kind == "fn" ? doc_name : "")
+    literal_qualified = split_qualified_identity(fn_name, literal_info)
+    doc_has_qualification = (function_doc_name != "" && index(function_doc_name, "::") > 0)
+    documented_qualified = 0
+    valid_namespace = ""
+
+    if (doc_namespace_conflict != "") {
+        fail_or_warn("multiple @namespace directives conflict: " doc_namespace " and " doc_namespace_conflict)
+    }
+
+    if (doc_namespace != "") {
+        if (is_valid_namespace_path(doc_namespace)) {
+            valid_namespace = doc_namespace
+        } else {
+            fail_or_warn("invalid @namespace path " doc_namespace)
+        }
+    }
+
+    if (doc_has_qualification) {
+        if (split_qualified_identity(function_doc_name, documented_info)) {
+            documented_qualified = 1
+        } else {
+            fail_or_warn("invalid qualified @fn identity " function_doc_name)
+        }
+    }
+
+    if (literal_qualified) {
+        identity = fn_name
+
+        if (documented_qualified && function_doc_name != fn_name) {
+            fail_or_warn("documentation identity " function_doc_name " conflicts with literal Bash declaration " fn_name)
+        }
+
+        if (valid_namespace != "" && valid_namespace != literal_info["namespace"]) {
+            fail_or_warn("@namespace " valid_namespace " conflicts with literal Bash namespace " literal_info["namespace"])
+        }
+
+        if (function_doc_name != "" && !doc_has_qualification) {
+            if (valid_namespace != "") {
+                combined = valid_namespace "::" function_doc_name
+                if (combined != fn_name) {
+                    fail_or_warn("documentation identity " combined " conflicts with literal Bash declaration " fn_name)
+                }
+            } else if (function_doc_name != fn_name) {
+                fail_or_warn("@fn documents " function_doc_name " but declaration is " fn_name)
+            }
+        }
+    } else if (documented_qualified) {
+        identity = function_doc_name
+
+        if (valid_namespace != "" && valid_namespace != documented_info["namespace"]) {
+            fail_or_warn("@namespace " valid_namespace " conflicts with qualified @fn namespace " documented_info["namespace"])
+        }
+    } else if (valid_namespace != "") {
+        if (function_doc_name == "") {
+            fail_or_warn("@namespace requires @fn for an unqualified Bash declaration")
+            identity = fn_name
+        } else if (doc_has_qualification) {
+            identity = fn_name
+        } else {
+            identity = valid_namespace "::" function_doc_name
+        }
+    } else {
+        identity = fn_name
+        if (doc_namespace == "" && function_doc_name != "" && !doc_has_qualification && function_doc_name != fn_name) {
+            fail_or_warn("@fn documents " function_doc_name " but declaration is " fn_name)
+        }
+    }
+
+    info["identity"] = identity
+    if (split_qualified_identity(identity, resolved_info)) {
+        info["namespace"] = resolved_info["namespace"]
+        info["member"] = resolved_info["member"]
+    } else {
+        info["namespace"] = ""
+        info["member"] = identity
+    }
+}
+
+function emit_function(namespace_name, member_name,    params, namespace_parts, namespace_count, i) {
     prepare_param_names()
     rewrite_param_doc_lines()
     params = build_param_list()
+
+    namespace_count = 0
+    if (namespace_name != "") {
+        namespace_count = split(namespace_name, namespace_parts, "::")
+        for (i = 1; i <= namespace_count; i++) {
+            print "namespace " namespace_parts[i] " {"
+        }
+    }
+
     emit_doc_block("", 1)
-    print "int " name "(" params ");"
+    print "int " member_name "(" params ");"
+
+    for (i = namespace_count; i >= 1; i--) {
+        print "}"
+    }
 }
 
 function count_top_level_words(s,    i, ch, quote, escaped, paren_depth, brace_depth, bracket_depth, in_word, count) {
@@ -584,10 +736,9 @@ function flush_unmatched_docs(reason) {
             if (doc_kind == "var") {
                 fail_or_warn("@var block precedes function declaration " fn_name)
             }
-            if (doc_name != "" && doc_name != fn_name) {
-                fail_or_warn("@fn documents " doc_name " but declaration is " fn_name)
-            }
-            emit_function(fn_name)
+            resolve_function_identity(fn_name, fn_identity)
+            emit_function(fn_identity["namespace"], fn_identity["member"])
+            delete fn_identity
             reset_doc()
             next
         }
@@ -604,6 +755,9 @@ function flush_unmatched_docs(reason) {
             }
 
             if (variable_status > 0) {
+                if (doc_namespace != "") {
+                    fail_or_warn("@namespace is only supported for function documentation")
+                }
                 if (doc_kind == "fn") {
                     fail_or_warn("@fn block precedes variable declaration " var_info["name"])
                 }
