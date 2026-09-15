@@ -1,0 +1,5 @@
+## @package
+## @fn helper()
+helper() {
+  :
+}
