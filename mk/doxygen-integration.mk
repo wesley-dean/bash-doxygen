@@ -39,7 +39,7 @@ test-doxygen:
 	check_xml 'normalize_input parameter documentation' 'Value to normalize during integration testing.'; \
 	check_xml 'normalize_input return documentation' 'A single normalized integration value.'; \
 	check_xml 'nested namespace compound' '<compoundname>integration::nested</compoundname>'; \
-	check_xml 'namespaced qualified function' '<qualifiedname>integration::nested::namespaced</qualifiedname>'; \
+	check_xml 'namespaced qualified function' '<definition>int integration::nested::namespaced</definition>'; \
 	check_xml 'namespaced function brief' 'Provides a documentation-only namespace integration sentinel.'
 
 ## Exercise every generated release candidate through the same Doxygen contract.
