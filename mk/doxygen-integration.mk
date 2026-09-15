@@ -29,6 +29,9 @@ test-doxygen:
 	@grep -R -Fq '<parametername direction="in">input_value</parametername>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'Value to normalize during integration testing.' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'A single normalized integration value.' "$(INTEGRATION_OUT)/xml"
+	@grep -R -Fq '<compoundname>integration::nested</compoundname>' "$(INTEGRATION_OUT)/xml"
+	@grep -R -Fq '<qualifiedname>integration::nested::namespaced</qualifiedname>' "$(INTEGRATION_OUT)/xml"
+	@grep -R -Fq 'Provides a documentation-only namespace integration sentinel.' "$(INTEGRATION_OUT)/xml"
 
 ## Exercise every generated release candidate through the same Doxygen contract.
 test-doxygen-dist: build
