@@ -805,10 +805,10 @@ function flush_module_docs_if_needed() {
     return 0
 }
 
-function flush_unmatched_docs(reason,    module_name) {
+function flush_unmatched_docs(reason) {
     if (doc_count > 0) {
         if (doc_module_seen) {
-            module_name = resolve_module_name()
+            resolve_module_name()
         }
         if (reason != "") {
             fail_or_warn(reason)
@@ -877,17 +877,17 @@ function flush_unmatched_docs(reason,    module_name) {
                 fail_or_warn("@var block precedes function declaration " fn_name)
             }
 
-            module_name = ""
+            resolved_module_name = ""
             if (doc_module_seen) {
-                module_name = resolve_module_name()
+                resolved_module_name = resolve_module_name()
                 if (doc_kind != "fn") {
                     fail_or_warn("module membership for function requires @fn")
-                    module_name = ""
+                    resolved_module_name = ""
                 }
             }
 
             resolve_function_identity(fn_name, fn_identity)
-            emit_function(fn_identity["namespace"], fn_identity["member"], module_name, doc_module_seen)
+            emit_function(fn_identity["namespace"], fn_identity["member"], resolved_module_name, doc_module_seen)
             delete fn_identity
             reset_doc()
             next
@@ -905,12 +905,12 @@ function flush_unmatched_docs(reason,    module_name) {
             }
 
             if (variable_status > 0) {
-                module_name = ""
+                resolved_module_name = ""
                 if (doc_module_seen) {
-                    module_name = resolve_module_name()
+                    resolved_module_name = resolve_module_name()
                     if (doc_kind != "var") {
                         fail_or_warn("module membership for variable requires @var")
-                        module_name = ""
+                        resolved_module_name = ""
                     }
                 }
                 if (doc_namespace != "") {
@@ -922,7 +922,7 @@ function flush_unmatched_docs(reason,    module_name) {
                 if (doc_name != "" && doc_name != var_info["name"]) {
                     fail_or_warn("@var documents " doc_name " but declaration is " var_info["name"])
                 }
-                emit_variable(var_info, module_name, doc_module_seen)
+                emit_variable(var_info, resolved_module_name, doc_module_seen)
                 delete var_info
                 reset_doc()
                 next
