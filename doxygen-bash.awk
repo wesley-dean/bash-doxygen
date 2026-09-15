@@ -286,7 +286,7 @@ function build_param_list(    i, joined) {
     return joined
 }
 
-function emit_doc_block(extra_line, suppress_fn, suppress_module, structural_line,    i, line, meta) {
+function emit_doc_block(extra_line, suppress_fn, suppress_module, structural_line, trailing_line,    i, line, meta) {
     print "/**"
     if (structural_line != "") {
         print " * " structural_line
@@ -305,6 +305,9 @@ function emit_doc_block(extra_line, suppress_fn, suppress_module, structural_lin
         } else {
             print " * " line
         }
+    }
+    if (trailing_line != "") {
+        print " * " trailing_line
     }
     if (extra_line != "") {
         print " * " extra_line
@@ -765,7 +768,7 @@ function emit_variable(info, module_name, module_requested,    type, group_line)
     if (module_name != "") {
         group_line = "@ingroup " module_name
     }
-    emit_doc_block(variable_meta(info), 0, module_requested, group_line)
+    emit_doc_block(variable_meta(info), 0, module_requested, "", group_line)
     type = variable_pseudo_type(info)
     print type " " info["name"] ";"
 }
