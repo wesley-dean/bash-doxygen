@@ -28,7 +28,11 @@ test-doxygen:
 	@grep -R -Fq '<declname>input_value</declname>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq '<parametername direction="in">input_value</parametername>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'Value to normalize during integration testing.' "$(INTEGRATION_OUT)/xml"
-	@grep -R -Fq 'A single normalized integration value.' "$(INTEGRATION_OUT)/xml"
+	@if ! grep -R -Fq 'A single normalized integration value.' "$(INTEGRATION_OUT)/xml"; then \
+		printf '%s\n' 'Missing normalize_input return documentation; related XML follows:' >&2; \
+		grep -R -n -E 'normalize_input|normalized|return|integration::nested|namespaced' "$(INTEGRATION_OUT)/xml" >&2 || true; \
+		exit 1; \
+	fi
 	@grep -R -Fq '<compoundname>integration::nested</compoundname>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq '<qualifiedname>integration::nested::namespaced</qualifiedname>' "$(INTEGRATION_OUT)/xml"
 	@grep -R -Fq 'Provides a documentation-only namespace integration sentinel.' "$(INTEGRATION_OUT)/xml"
