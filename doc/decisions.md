@@ -101,3 +101,14 @@ remain association barriers.  Documented multi-name explicit declarations are
 rejected with a diagnostic and no partial first-symbol output, using a small
 lexical word counter rather than a general Bash parser.  See
 [`ADR-008`](adr/ADR-008-bound-declaration-association-with-explicit-lexical-rules.md).
+
+## ADR-009: Separate Bash symbols from documentation namespaces
+
+Literal qualified Bash function names remain authoritative source identities,
+while qualified `@fn` directives or explicit `@namespace` plus `@fn` may define
+a separate documentation identity for a differently named implementation.
+Namespace evidence is never inferred from prefixes, redundant evidence must
+agree, and conflicts are diagnostics rather than silently resolved by precedence.
+Qualified documentation identities are emitted as nested C++ namespace blocks
+and must pass the focused Doxygen XML semantic test.  See
+[`ADR-009`](adr/ADR-009-separate-bash-symbols-from-documentation-namespaces.md).
