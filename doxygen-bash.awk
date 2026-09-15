@@ -333,11 +333,11 @@ function split_qualified_identity(identity, info,    parts, count, i, namespace_
     return 1
 }
 
-function resolve_function_identity(fn_name, info,    literal_info, documented_info, resolved_info, literal_qualified, documented_qualified, doc_has_qualification, valid_namespace, combined, identity, function_doc_name) {
+function resolve_function_identity(physical_name, info,    literal_info, documented_info, resolved_info, literal_qualified, documented_qualified, doc_has_qualification, valid_namespace, combined, identity, function_doc_name) {
     delete info
 
     function_doc_name = (doc_kind == "fn" ? doc_name : "")
-    literal_qualified = split_qualified_identity(fn_name, literal_info)
+    literal_qualified = split_qualified_identity(physical_name, literal_info)
     doc_has_qualification = (function_doc_name != "" && index(function_doc_name, "::") > 0)
     documented_qualified = 0
     valid_namespace = ""
@@ -363,10 +363,10 @@ function resolve_function_identity(fn_name, info,    literal_info, documented_in
     }
 
     if (literal_qualified) {
-        identity = fn_name
+        identity = physical_name
 
-        if (documented_qualified && function_doc_name != fn_name) {
-            fail_or_warn("documentation identity " function_doc_name " conflicts with literal Bash declaration " fn_name)
+        if (documented_qualified && function_doc_name != physical_name) {
+            fail_or_warn("documentation identity " function_doc_name " conflicts with literal Bash declaration " physical_name)
         }
 
         if (valid_namespace != "" && valid_namespace != literal_info["namespace"]) {
@@ -376,11 +376,11 @@ function resolve_function_identity(fn_name, info,    literal_info, documented_in
         if (function_doc_name != "" && !doc_has_qualification) {
             if (valid_namespace != "") {
                 combined = valid_namespace "::" function_doc_name
-                if (combined != fn_name) {
-                    fail_or_warn("documentation identity " combined " conflicts with literal Bash declaration " fn_name)
+                if (combined != physical_name) {
+                    fail_or_warn("documentation identity " combined " conflicts with literal Bash declaration " physical_name)
                 }
-            } else if (function_doc_name != fn_name) {
-                fail_or_warn("@fn documents " function_doc_name " but declaration is " fn_name)
+            } else if (function_doc_name != physical_name) {
+                fail_or_warn("@fn documents " function_doc_name " but declaration is " physical_name)
             }
         }
     } else if (documented_qualified) {
@@ -392,16 +392,16 @@ function resolve_function_identity(fn_name, info,    literal_info, documented_in
     } else if (valid_namespace != "") {
         if (function_doc_name == "") {
             fail_or_warn("@namespace requires @fn for an unqualified Bash declaration")
-            identity = fn_name
+            identity = physical_name
         } else if (doc_has_qualification) {
-            identity = fn_name
+            identity = physical_name
         } else {
             identity = valid_namespace "::" function_doc_name
         }
     } else {
-        identity = fn_name
-        if (doc_namespace == "" && function_doc_name != "" && !doc_has_qualification && function_doc_name != fn_name) {
-            fail_or_warn("@fn documents " function_doc_name " but declaration is " fn_name)
+        identity = physical_name
+        if (doc_namespace == "" && function_doc_name != "" && !doc_has_qualification && function_doc_name != physical_name) {
+            fail_or_warn("@fn documents " function_doc_name " but declaration is " physical_name)
         }
     }
 
