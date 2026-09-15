@@ -62,10 +62,10 @@ are decorated with a Doxygen block.
 Documentation blocks must therefore remain contiguous and associated with the
 function or variable declaration they document.
 
-The filter structurally understands `@file`, `@fn`, `@namespace`, `@var`, and
-`@param` names and preserves ordinary Doxygen commands such as `@brief`,
-`@details`, `@returns`, `@retval`, `@note`, `@warning`, `@see`, `@par`, `@code`,
-and `@endcode`.
+The filter structurally understands `@file`, `@fn`, `@namespace`, `@module`,
+`@package`, `@var`, and `@param` names and preserves ordinary Doxygen commands
+such as `@brief`, `@details`, `@returns`, `@retval`, `@note`, `@warning`, `@see`,
+`@par`, `@code`, and `@endcode`.
 
 For ordinary unqualified functions, `@fn` continues to validate the physical
 Bash declaration that follows.  `@var` likewise must agree with the following
@@ -75,9 +75,17 @@ explicit `@namespace` combined with `@fn` may establish a qualified documentatio
 identity according to ADR-009.  The tooling must not infer namespace membership
 from implementation prefixes such as `config_` or `network_http_`.
 
+`@module` defines the canonical logical-module vocabulary.  `@package` is an
+exact alias that maps to the same Doxygen group abstraction rather than a
+language-specific package model.  A module-only block defines a group; function
+and variable membership requires explicit `@fn` or `@var` metadata in the same
+block.  Module membership is local and must never be inferred from prefixes,
+filenames, source relationships, namespaces, or neighboring declarations.
+
 Maintainers should prefer explicit structural commands because they allow tooling
-to catch documentation drift.  When multiple namespace-related sources are
-present, they must agree rather than relying on precedence to hide a conflict.
+to catch documentation drift.  When multiple namespace- or module-related
+sources are present, they must agree rather than relying on precedence to hide a
+conflict.
 
 ## File Blocks
 
@@ -263,6 +271,82 @@ resolved function, `bash-doxygen` consumes them while generating the Doxygen
 namespace structure and synthesized member declaration.  Their absence from the
 generated comment block does not remove their source-level documentation role.
 
+### Documentation Modules and Groups
+
+Documentation modules are an optional organizational abstraction that maps to
+Doxygen groups.  They do not create Bash language modules, change runtime symbol
+names, or establish source scope.
+
+Use `@module` as the canonical spelling when defining a logical module:
+
+```bash
+## @module networking
+## @brief Network-related functionality.
+```
+
+`@package` is accepted as an exact alias when that vocabulary is preferable:
+
+```bash
+## @package networking
+## @brief Network-related functionality.
+```
+
+The two spellings have identical behavior.  `@package` must not be interpreted as
+Java package semantics or another language-specific package construct.
+
+Initial module identifiers are flat and must begin with a letter or underscore,
+followed by letters, digits, or underscores.  Nested module paths and parent/child
+group relationships are not part of the current standard.
+
+To assign a function to a module, repeat the module marker in the function's own
+block and include the required explicit `@fn`:
+
+```bash
+## @module networking
+## @fn download()
+## @brief Downloads a resource.
+download() {
+  :
+}
+```
+
+To assign a variable, include the module marker with an explicit `@var`:
+
+```bash
+## @module networking
+## @var NETWORK_TIMEOUT
+## @brief Default network timeout in seconds.
+readonly NETWORK_TIMEOUT=30
+```
+
+The module definition does not establish persistent membership for later
+symbols.  Every member repeats its module metadata so membership remains local,
+visible, and stable when source is moved.
+
+Function namespaces and module membership are independent.  A namespaced function
+may also belong to a module:
+
+```bash
+## @module networking
+## @namespace transport::http
+## @fn get()
+network_http_get() {
+  :
+}
+```
+
+The generated documentation keeps `transport::http::get` as the function's
+namespace identity while also assigning it to the Doxygen group `networking`.
+
+Do not infer module membership from naming prefixes, namespace names, filenames,
+directories, sourcing relationships, adjacency to a module definition, or a
+previous module member.  A module marker followed directly by a function or
+variable without explicit `@fn` or `@var` is incomplete membership metadata and
+must be corrected.
+
+`@module` and `@package` are source-side structural directives.  `bash-doxygen`
+consumes them and emits Doxygen `@defgroup` or `@ingroup` metadata as appropriate.
+
 ### Paragraphs for STDIN, STDOUT, and STDERR
 
 Individual `@par` (paragraphs) must be included that describe the contracts
@@ -420,7 +504,8 @@ readonly BASHLOG_DEFAULT_LEVEL='info'
 ```
 
 Using `@var` allows `bash-doxygen` to verify that the documentation name matches
-the following declaration.
+the following declaration.  A variable that belongs to a documentation module
+must use explicit `@var` metadata in the same block as `@module` or `@package`.
 
 Do not document every local loop variable.  Documentation volume should preserve
 reasoning, not create noise that obscures it.
@@ -505,30 +590,33 @@ without forcing all consumers to receive the same comment volume.
 
 ## General Function Structure Pattern
 
-1. optional `@namespace` when an explicit documentation namespace is required
-2. `@fn`
-3. `@brief`
-4. `@details`
-5. additional `@note`, `@warning`, `@see`, and `@par Side Effects` directives
+1. optional `@module` or `@package` when the function belongs to a documentation
+   group
+2. optional `@namespace` when an explicit documentation namespace is required
+3. `@fn`
+4. `@brief`
+5. `@details`
+6. additional `@note`, `@warning`, `@see`, and `@par Side Effects` directives
    as needed; directives that qualify a specific section may appear adjacent to
    that section
-6. blank line
-7. zero or more `@param` directives
-8. blank line
-9. exactly one `@par STDIN`
-10. exactly one `@par STDOUT`
-11. exactly one `@par STDERR`
-12. blank line
-13. exactly one `@returns`
-14. zero or more `@retval` directives
-15. `@par Examples`
-16. `@code`
-17. example lines
-18. `@endcode`
+7. blank line
+8. zero or more `@param` directives
+9. blank line
+10. exactly one `@par STDIN`
+11. exactly one `@par STDOUT`
+12. exactly one `@par STDERR`
+13. blank line
+14. exactly one `@returns`
+15. zero or more `@retval` directives
+16. `@par Examples`
+17. `@code`
+18. example lines
+19. `@endcode`
 
 A qualified `@fn` may establish the documentation namespace without a separate
 `@namespace`.  Do not add redundant `@namespace` metadata unless the redundancy
-improves source clarity and all explicit identity sources agree.
+improves source clarity and all explicit identity sources agree.  Module metadata
+is independent of namespace metadata and must be repeated in each member block.
 
 ## Review Standard
 
@@ -563,6 +651,11 @@ applicable:
   inferred implementation prefixes;
 * redundant namespace evidence agrees when more than one explicit source is
   present;
+* module definitions prefer `@module`; `@package` is only an exact alias for the
+  same Doxygen group abstraction;
+* module identifiers use the supported flat identifier grammar;
+* module members repeat explicit block-local module metadata and use `@fn` or
+  `@var` rather than relying on proximity or inferred naming conventions;
 * parameters are documented in call order;
 * every function contains exactly one `@par STDIN`, one `@par STDOUT`, one
   `@par STDERR`, and one `@returns`;
