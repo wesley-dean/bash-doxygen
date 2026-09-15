@@ -59,8 +59,10 @@ unbreakable content such as long URLs.
 intermediate representation.  It intentionally emits declarations only when they
 are decorated with a Doxygen block.
 
-Documentation blocks must therefore remain contiguous and associated with the
-function or variable declaration they document.
+Documentation blocks for symbols must remain contiguous and associated with the
+function or variable declaration they document.  Standalone module-definition
+blocks are complete documentation blocks and do not require a following Bash
+declaration.
 
 The filter structurally understands `@file`, `@fn`, `@namespace`, `@module`,
 `@package`, `@var`, and `@param` names and preserves ordinary Doxygen commands
@@ -319,6 +321,12 @@ To assign a variable, include the module marker with an explicit `@var`:
 readonly NETWORK_TIMEOUT=30
 ```
 
+The source `@var` remains required and is used to validate the following variable
+name.  Once valid module membership is resolved, `bash-doxygen` consumes that
+structural directive and attaches the descriptive documentation plus `@ingroup`
+to the synthesized variable declaration.  Ungrouped variables retain the normal
+emitted `@var` behavior.
+
 The module definition does not establish persistent membership for later
 symbols.  Every member repeats its module metadata so membership remains local,
 visible, and stable when source is moved.
@@ -506,6 +514,9 @@ readonly BASHLOG_DEFAULT_LEVEL='info'
 Using `@var` allows `bash-doxygen` to verify that the documentation name matches
 the following declaration.  A variable that belongs to a documentation module
 must use explicit `@var` metadata in the same block as `@module` or `@package`.
+For successfully grouped variables, `@var` remains source-level validation
+metadata even though the filter consumes it before emitting the synthesized
+Doxygen variable declaration.
 
 Do not document every local loop variable.  Documentation volume should preserve
 reasoning, not create noise that obscures it.
