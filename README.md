@@ -439,3 +439,24 @@ License.  See [LICENSE](LICENSE) for details.
 
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
+## Shared Coding Standards
+
+This repository adopts the complete pinned `coding_standards@v1.0.9` snapshot
+under `doc/standards/`; `.codingstandardrc` records the verified release archive
+digest.  Applicable imported standards are governing requirements unless an
+accepted repository-specific ADR or explicit local policy refines them.  Presence
+in the complete snapshot does not itself make a language-specific standard
+applicable, and files under `doc/standards/examples/` are illustrative unless a
+governing standard says otherwise.
+
+Do not edit imported standards locally.  Shared changes belong upstream in
+`wesley-dean/coding_standards`; repository-specific exceptions belong in local
+governance.  Standards updates are reviewed repository changes, not automatic
+synchronization.
+
+Authoritative shared source-documentation standards used by this repository:
+
+- Bash: `doc/standards/bash/documentation-standard.md`
+- AWK: `doc/standards/awk/documentation-standard.md`
+

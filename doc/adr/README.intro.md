@@ -9,9 +9,9 @@ The repository separates documentation by responsibility:
 
 - [`README.md`](../../README.md) provides project orientation, supported behavior,
   usage, build, release, and testing guidance.
-- [`doc/bash-documentation-standard.md`](../bash-documentation-standard.md)
+- [`doc/standards/bash/documentation-standard.md`](../bash-documentation-standard.md)
   defines the Bash source-documentation standard consumed by this filter.
-- [`doc/awk-documentation-standard.md`](../awk-documentation-standard.md)
+- [`doc/standards/awk/documentation-standard.md`](../awk-documentation-standard.md)
   documents the companion AWK source standard used for the filter implementation.
 - [`doc/decisions.md`](../decisions.md) provides concise summaries of the
   architecture decisions represented below.

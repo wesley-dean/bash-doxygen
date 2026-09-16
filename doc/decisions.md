@@ -4,6 +4,17 @@ This document provides concise summaries of the architecture decisions governing
 `bash-doxygen`.  The ADRs themselves remain authoritative; these summaries are
 navigation aids rather than substitutes for the full decisions.
 
+## Maintenance
+
+Every ADR in this repository uses `Accepted` as its status.  Merging a pull
+request that contains a new or materially changed ADR is generally understood to
+accept that ADR; supersession, replacement, deprecation, and similar relationships
+belong in the ADR narrative rather than in alternate status values.  Each ADR
+must have a corresponding summary here of generally three to five sentences with
+a direct reference to the ADR.  Adding or materially changing an ADR requires
+reviewing and updating that summary in the same pull request, including earlier
+summaries affected by a superseding or refining decision.
+
 ## ADR-000: Capability scope and epistemic honesty
 
 The project prioritizes accuracy, explicit capability boundaries, evidence,
@@ -126,3 +137,15 @@ Doxygen-facing grouped variable.  Membership is local to each documentation
 block, is never inferred from names or files, and nested groups plus class
 abstractions remain separate future work.  See
 [`ADR-010`](adr/ADR-010-map-explicit-bash-modules-to-doxygen-groups.md).
+
+## ADR-011: Adopt shared coding standards
+
+**Status:** Accepted
+
+The repository adopts the complete verified `coding_standards@v1.0.9` snapshot
+beneath `doc/standards/` with provenance in `.codingstandardrc`.  Applicable
+imported standards govern where relevant, subject to accepted local ADRs and
+explicit policy; presence does not imply applicability, and imported examples are
+illustrative.  Duplicate live documentation-standard files are removed where
+present so shared documentation rules have one authoritative managed path.  See
+[ADR-011](adr/ADR-011-adopt-shared-coding-standards.md).
