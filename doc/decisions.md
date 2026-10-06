@@ -142,7 +142,7 @@ abstractions remain separate future work.  See
 
 **Status:** Accepted
 
-The repository adopts the complete verified `coding_standards@v1.0.9` snapshot
+The repository adopts the complete verified `coding_standards@v2.1.0` snapshot
 beneath `doc/standards/` with provenance in `.codingstandardrc`.  Applicable
 imported standards govern where relevant, subject to accepted local ADRs and
 explicit policy; presence does not imply applicability, and imported examples are
