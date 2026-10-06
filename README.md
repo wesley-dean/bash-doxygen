@@ -442,7 +442,7 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
 
 ## Shared Coding Standards
 
-This repository adopts the complete pinned `coding_standards@v1.0.9` snapshot
+This repository adopts the complete pinned `coding_standards@v2.1.0` snapshot
 under `doc/standards/`; `.codingstandardrc` records the verified release archive
 digest.  Applicable imported standards are governing requirements unless an
 accepted repository-specific ADR or explicit local policy refines them.  Presence
