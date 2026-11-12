@@ -440,9 +440,24 @@ License.  See [LICENSE](LICENSE) for details.
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
+## Dependabot Maintenance
+
+Routine GitHub Actions version updates run weekly with a seven-day cooldown.
+The `actions-version-updates` group consolidates eligible major, minor, and
+patch releases into one version-update group.  Security updates remain outside
+this scheduled group, and depend on separately enabled GitHub security features.
+The existing non-major-only Dependabot auto-merge condition is preserved; groups
+containing major upgrades require the normal review path.
+
+Grouping does not retroactively replace existing Dependabot pull requests or
+guarantee a particular number of PRs per cycle.  High-authority actions and
+release automation still need dependency-specific review and relevant tests.
+See [ADR-012](doc/adr/ADR-012-consolidate-github-actions-dependabot-updates.md)
+for the decision, security tradeoffs, and limitations.
+
 ## Shared Coding Standards
 
-This repository adopts the complete pinned `coding_standards@v2.1.0` snapshot
+This repository adopts the complete pinned `coding_standards@v3.2.0` snapshot
 under `doc/standards/`; `.codingstandardrc` records the verified release archive
 digest.  Applicable imported standards are governing requirements unless an
 accepted repository-specific ADR or explicit local policy refines them.  Presence

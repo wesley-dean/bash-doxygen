@@ -16,8 +16,9 @@ updates:
       prefix-development: chore
       include: scope
     groups:
-      minor-and-patch:
+      # Consolidate routine major, minor, and patch releases.
+      # Security updates remain outside scheduled version-update grouping.
+      actions-version-updates:
         applies-to: version-updates
-        update-types:
-          - "minor"
-          - "patch"
+        patterns:
+          - "*"
