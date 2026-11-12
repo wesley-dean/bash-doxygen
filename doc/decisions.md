@@ -142,10 +142,24 @@ abstractions remain separate future work.  See
 
 **Status:** Accepted
 
-The repository adopts the complete verified `coding_standards@v2.1.0` snapshot
+The repository adopts the complete verified `coding_standards@v3.2.0` snapshot
 beneath `doc/standards/` with provenance in `.codingstandardrc`.  Applicable
 imported standards govern where relevant, subject to accepted local ADRs and
 explicit policy; presence does not imply applicability, and imported examples are
 illustrative.  Duplicate live documentation-standard files are removed where
 present so shared documentation rules have one authoritative managed path.  See
 [ADR-011](adr/ADR-011-adopt-shared-coding-standards.md).
+
+## ADR-012: Consolidate scheduled GitHub Actions dependency updates
+
+**Status:** Accepted
+
+Routine GitHub Actions version updates run weekly with a seven-day cooldown and
+one `actions-version-updates` group including eligible major, minor, and patch
+releases.  The group is limited to version updates; vulnerability-remediation
+updates retain their independent triggering and require separately enabled GitHub
+security features.  Major-containing groups are not eligible for the existing
+non-major auto-merge path, and CODEOWNERS, branch protection, and relevant CI
+remain independent controls.  The new grouping does not retroactively supersede
+open Dependabot PRs or guarantee exactly one PR per week.  See
+[ADR-012](adr/ADR-012-consolidate-github-actions-dependabot-updates.md).
