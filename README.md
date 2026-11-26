@@ -440,20 +440,19 @@ License.  See [LICENSE](LICENSE) for details.
 Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
-## Dependabot Maintenance
+## Dependency Maintenance
 
-Routine GitHub Actions version updates run weekly with a seven-day cooldown.
-The `actions-version-updates` group consolidates eligible major, minor, and
-patch releases into one version-update group.  Security updates remain outside
-this scheduled group, and depend on separately enabled GitHub security features.
-The existing non-major-only Dependabot auto-merge condition is preserved; groups
-containing major upgrades require the normal review path.
+Routine dependency updates now belong to the centralized Jenkins Renovate
+service, explicitly enabled through root `renovate.json`.  The existing
+Dependabot version-update ecosystem has `open-pull-requests-limit: 0`.
+Vulnerability alerts and Dependabot security updates remain independent.
+The existing non-major Dependabot auto-merge workflow remains scoped to
+`dependabot[bot]`; Renovate must satisfy existing human review and CI.
 
-Grouping does not retroactively replace existing Dependabot pull requests or
-guarantee a particular number of PRs per cycle.  High-authority actions and
-release automation still need dependency-specific review and relevant tests.
-See [ADR-012](doc/adr/ADR-012-consolidate-github-actions-dependabot-updates.md)
-for the decision, security tradeoffs, and limitations.
+Operational verification requires accepted Renovate machine-account write
+access, effective security and branch settings, and an observed Jenkins run.
+Existing routine Dependabot PRs should be retired only after migration merge.
+See [ADR-013](doc/adr/ADR-013-migrate-routine-dependency-updates-to-renovate.md).
 
 ## Shared Coding Standards
 
