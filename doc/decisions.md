@@ -163,3 +163,15 @@ non-major auto-merge path, and CODEOWNERS, branch protection, and relevant CI
 remain independent controls.  The new grouping does not retroactively supersede
 open Dependabot PRs or guarantee exactly one PR per week.  See
 [ADR-012](adr/ADR-012-consolidate-github-actions-dependabot-updates.md).
+ 
+## ADR-013: Migrate Routine Dependency Updates to Centrally Managed Renovate
+
+This repository replaces scheduled Dependabot version update proposals with
+central Jenkins-hosted Renovate enrollment through `renovate.json`.  The
+Dependabot security-update boundary, SHA pins, existing security checks, and
+required human code-owner review remain intact.  ADR-013 partially supersedes
+ADR-012's active routine Dependabot provider and its prohibition against a zero
+PR limit; the prior risk-based review principles remain applicable.
+Machine-account permissions, security settings, and Jenkins operation require
+independent verification.
+See [ADR-013](adr/ADR-013-migrate-routine-dependency-updates-to-renovate.md).
